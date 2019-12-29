@@ -1,0 +1,9 @@
+trackdone 55075
+fwdbtn 79912
+backbtn 13034
+appload 1942
+trackerror 92
+clickrow 17514
+playbtn 155
+remote 136
+endplay 20
