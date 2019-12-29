@@ -1,6 +1,6 @@
 import csv
 import os
-import log_parser as lp
+import data_parser as lp
 import numpy as np
 
 
@@ -39,7 +39,7 @@ for filename in os.listdir("."):
         with open(filename) as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                lp.LogParser.append_track_data(row, tracks)
+                lp.DataParser.append_track_data(row, tracks)
                 if cur_sess_id != row['session_id']:
                     session_lengths[row['session_length']] += 1
                     cur_sess_id = row['session_id']

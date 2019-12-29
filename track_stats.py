@@ -1,6 +1,6 @@
 import csv
 import os
-import log_parser as lp
+import data_parser as lp
 import numpy as np
 
 
@@ -33,16 +33,22 @@ tracks = {}
 session_lengths = {i: 0 for i in range(21)}
 cur_sess_id = None
 
+print('starting track stats')
+
 for filename in os.listdir("."):
     print('processing file ' + filename)
     if filename.endswith('.csv'):
         with open(filename) as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                lp.LogParser.append_track_data(row, tracks)
-                if cur_sess_id != row['session_id']:
-                    session_lengths[row['session_length']] += 1
-                    cur_sess_id = row['session_id']
+                lp.DataParser.append_track_data(row, tracks)
+                id = row['session_id']
+                if cur_sess_id != id:
+                    if id in session_lengths:
+                        session_lengths[id] += 1
+                    else:
+                        session_lengths[id] = 1
+                    cur_sess_id = id
 
 count_histogram = create_track_count_histogram(tracks)
 skip_histogram = create_track_skip_histogram(tracks)

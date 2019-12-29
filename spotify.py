@@ -1,15 +1,13 @@
 import numpy as np
-import log_parser as lp
+from data_parser import DataParser
+import enums
 
 
 class Spotify:
-    SKIP = 1
-    LOG = 14
-    
     class Dataset:
         def __init__(self, data, shuffle_batches, seed=42):
             self._data = data
-            self._size = len(self._data["logs"])
+            self._size = len(self._data['features'])
             self._shuffler = np.random.RandomState(seed) if shuffle_batches else None
 
         @property
@@ -32,16 +30,27 @@ class Spotify:
                     batch[key] = self._data[key][batch_perm]
                 yield batch
 
-    def __init__(self, train_filename):
-        i = lp.LogParser.get_input_data_from_csv_file(train_filename)
-        o = lp.LogParser.get_output_data_from_csv_file(train_filename)
-        length = np.shape(i)
-        eighty_percent = int(length[0]*0.8)
-        train_i = i[:eighty_percent, :]
-        train_o = o[:eighty_percent]
-        dev_i = i[eighty_percent:, :]
-        dev_o = o[eighty_percent:]
-        train_data = {'logs': train_i, 'skip': train_o}
-        setattr(self, 'train', self.Dataset(train_data, shuffle_batches=True))
-        dev_data = {'logs': dev_i, 'skip': dev_o}
-        setattr(self, 'dev', self.Dataset(dev_data, shuffle_batches=False))
+    def _split_to_dev_train(self, i, o, percents):
+        length = np.shape(i)[0]
+        fraction = int(length * percents / 100.0)
+        train_i = i[:fraction, :]
+        train_o = o[:fraction]
+        dev_i = i[fraction:, :]
+        dev_o = o[fraction:]
+        train_data = {'features': train_i, 'skip': train_o}
+        dev_data = {'features': dev_i, 'skip': dev_o}
+        return self.Dataset(train_data, shuffle_batches=True), self.Dataset(dev_data, shuffle_batches=False)
+
+    def __init__(self, mode, logs, tf_files=None):
+        self.parser = DataParser(mode, tf_files)
+        self.logs = logs
+
+    def get_next_data(self, split_to_train_dev=True, percents=80):
+        for logfile in self.logs:
+            i, o = self.parser.get_data_from_file(logfile)
+            if split_to_train_dev:
+                yield self._split_to_dev_train(i, o, percents)
+            else:
+                data = {'features': i, 'skip': o}
+                yield self.Dataset(data, shuffle_batches=False)
+

@@ -38,3 +38,15 @@ class ReasonTrackEnd:
     POP_UP = 10.
     URI_OPEN = 11.
     CLICK_ROW = 12.
+
+
+class PredictionMode:
+    UNDEFINED = 0.
+    TRACK_FEATURES = 1.
+    LOG_FEATURES = 2.
+    ALL_FEATURES = 3.
+
+
+class TrackMode:
+    MINOR = 0.
+    MAJOR = 1.
