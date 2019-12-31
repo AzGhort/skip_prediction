@@ -6,8 +6,8 @@ import numpy as np
 
 def create_track_count_histogram(tracks):
     histogram = {}
-    for track, data in tracks:
-        count = data[0]
+    for data in tracks.values():
+        count = int(data[0])
         if count in histogram:
             histogram[count] += 1
         else:
@@ -17,11 +17,10 @@ def create_track_count_histogram(tracks):
 
 def create_track_skip_histogram(tracks):
     histogram = {}
-    for track, data in tracks:
+    for data in tracks.values():
         # skip 2 is the target value in the challenge
-        skipped = data[2]
         # just whole percents
-        percents = np.floor(skipped / data[1])
+        percents = np.floor(100.0 * float(data[2]) / float(data[0]))
         if percents in histogram:
             histogram[percents] += 1
         else:
@@ -44,29 +43,26 @@ for filename in os.listdir("."):
                 lp.DataParser.append_track_data(row, tracks)
                 id = row['session_id']
                 if cur_sess_id != id:
-                    if id in session_lengths:
-                        session_lengths[id] += 1
-                    else:
-                        session_lengths[id] = 1
+                    session_lengths[int(row['session_length'])] += 1
                     cur_sess_id = id
 
 count_histogram = create_track_count_histogram(tracks)
 skip_histogram = create_track_skip_histogram(tracks)
 
 lngths = open('session_lengths.txt', 'w+')
-for length, count in session_lengths:
+for length, count in session_lengths.items():
     lngths.write(str(length) + ' ' + str(count))
     lngths.write(os.linesep)
 lngths.close()
 
 counts = open('track_counts.txt', 'w+')
-for sessions, count in count_histogram:
+for sessions, count in count_histogram.items():
     counts.write(str(sessions) + ' ' + str(count))
     counts.write(os.linesep)
 counts.close()
 
 skips = open('track_skips.txt', 'w+')
-for percents, count in skip_histogram:
+for percents, count in skip_histogram.items():
     skips.write(str(percents) + ' ' + str(count))
     skips.write(os.linesep)
 skips.close()
