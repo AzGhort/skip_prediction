@@ -1,6 +1,6 @@
 import numpy as np
 import csv
-import enums
+import os
 
 
 class TrackFeatureParser:
@@ -18,10 +18,11 @@ class TrackFeatureParser:
         map.update(features_map)
 
     @staticmethod
-    def get_track_features(files):
+    def get_track_features(folder):
         map = {}
-        for file in files:
-            TrackFeatureParser._update_features_map(file, map)
+        for filename in os.listdir(folder):
+            if filename.endswith('.csv'):
+                TrackFeatureParser._update_features_map(os.path.join(folder, filename), map)
         return map
 
 
@@ -29,8 +30,8 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file", default="tf_0.csv", type=str)
+    parser.add_argument("--folder", default="tf", type=str)
     args = parser.parse_args()
 
-    map = TrackFeatureParser.get_track_features([args.file])
+    map = TrackFeatureParser.get_track_features(args.folder)
     pass

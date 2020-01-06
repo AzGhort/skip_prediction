@@ -5,74 +5,74 @@ from track_feature_parser import TrackFeatureParser
 
 
 class DataParser:
-    def __init__(self, mode, tf_files=None):
-        self.mode = mode
-        if mode != enums.PredictionMode.LOG_FEATURES:
-            self.track_features = TrackFeatureParser.get_track_features(tf_files)
+    def __init__(self, tf_folder):
+        self.track_features = TrackFeatureParser.get_track_features(tf_folder)
 
     def get_data_from_file(self, file):
         cur_id = None
-        i = []
-        o = []
+        session_features = []
+        track_features = []
+        skips = []
         with open(file) as csvfile:
             reader = csv.DictReader(csvfile)
             session_lines = []
             for row in reader:
+                if cur_id is None:
+                    cur_id = row['session_id']
                 if row['session_id'] == cur_id:
                     session_lines.append(row)
                 else:
-                    f, s = self._get_data_from_session(session_lines)
-                    i.append(f)
-                    o.append(s)
-                    session_lines = []
+                    sfs, tfs, skps = self._get_data_from_session(session_lines)
+                    session_features.append(sfs)
+                    track_features.append(tfs)
+                    skips.append(skps)
+                    session_lines = [row]
                     cur_id = row['session_id']
-        return i, o
+        data = {'session_features': session_features, 'track_features': track_features, 'skips': skips}
+        return data
 
     def _get_data_from_session(self, session):
-        fraction = float(session[0]['session_length']) * 0.5
-        first_half = session[:fraction, :]
-        second_half = session[:fraction]
-        return self._get_input_data(first_half), self._get_output_data(second_half)
+        fraction = int(float(session[0]['session_length']) * 0.5)
+        first_half = session[:fraction]
+        second_half = session[fraction:]
 
-    def _get_output_data(self, session_half):
+        skips = self._get_skips(second_half)
+        tfs = self._get_track_features(session)
+        sfs = self._get_session_metadata(first_half)
+
+        return sfs, tfs, skips
+
+    def _get_skips(self, session):
         out = []
-        for sess in session_half:
-            out.append(DataParser.get_numeric_bool_from_string(sess['skip_2']))
+        for sess in session:
+            out.append([DataParser.get_numeric_bool_from_string(sess['skip_2'])])
         return np.array(out, np.float32)
 
-    def _get_input_data(self, session_half):
-        i = []
-        for sess in session_half:
-            if self.mode == enums.PredictionMode.LOG_FEATURES:
-                i.append(self._get_data_from_log(sess))
-            elif self.mode == enums.PredictionMode.TRACK_FEATURES:
-                i.append(self._get_data_from_features(sess))
-            else:
-                i.append(self._get_all_data(sess))
-        return np.array(i, np.float32)
+    def _get_session_metadata(self, session):
+        out = []
+        for line in session:
+            row = line
+            del row['session_id']
+            del row['track_id_clean']
+            del row['date']
+            row['skip_1'] = DataParser.get_numeric_bool_from_string(row['skip_1'])
+            row['skip_2'] = DataParser.get_numeric_bool_from_string(row['skip_2'])
+            row['skip_3'] = DataParser.get_numeric_bool_from_string(row['skip_3'])
+            row['not_skipped'] = DataParser.get_numeric_bool_from_string(row['not_skipped'])
+            row['hist_user_behavior_is_shuffle'] = DataParser.get_numeric_bool_from_string(row['hist_user_behavior_is_shuffle'])
+            row['premium'] = DataParser.get_numeric_bool_from_string(row['premium'])
+            row['context_type'] = DataParser.get_spotify_context_type_from_string(row['context_type'])
+            row['hist_user_behavior_reason_start'] = DataParser.get_reason_track_start_from_string(row['hist_user_behavior_reason_start'])
+            row['hist_user_behavior_reason_end'] = DataParser.get_reason_track_end_from_string(row['hist_user_behavior_reason_end'])
+            ls = list(row.values())
+            out.append(ls)
+        return np.array(out, np.float32)
 
-    def _get_data_from_log(self, line):
-        row = line
-        del row['session_id']
-        del row['track_id_clean']
-        del row['date']
-        row['skip_1'] = DataParser.get_numeric_bool_from_string(row['skip_1'])
-        row['skip_2'] = DataParser.get_numeric_bool_from_string(row['skip_2'])
-        row['skip_3'] = DataParser.get_numeric_bool_from_string(row['skip_3'])
-        row['not_skipped'] = DataParser.get_numeric_bool_from_string(row['not_skipped'])
-        row['hist_user_behavior_is_shuffle'] = DataParser.get_numeric_bool_from_string(row['hist_user_behavior_is_shuffle'])
-        row['premium'] = DataParser.get_numeric_bool_from_string(row['premium'])
-        row['context_type'] = DataParser.get_spotify_context_type_from_string(row['context_type'])
-        row['hist_user_behavior_reason_start'] = DataParser.get_reason_track_start_from_string(row['hist_user_behavior_reason_start'])
-        row['hist_user_behavior_reason_end'] = DataParser.get_reason_track_end_from_string(row['hist_user_behavior_reason_end'])
-        ls = list(row.values())
-        return ls
-
-    def _get_data_from_features(self, line):
-        return self.track_features[line['track_id_clean']]
-
-    def _get_all_data(self, line):
-        return np.concatenate(self._get_data_from_log(line), self._get_data_from_features(line))
+    def _get_track_features(self, session):
+        out = []
+        for line in session:
+            out.append(self.track_features[line['track_id_clean']])
+        return np.array(out, np.float32)
 
     # static methods
     @staticmethod

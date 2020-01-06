@@ -9,11 +9,17 @@
 /decision_tree_predictor.py
 /logs/
 /venv/
-/training set stats/log_0_20180715_000000000000.csv
-/training set stats/log_mini.csv
-/training set stats/enums.py
-/training set stats/data_parser.py
-/training set stats/tf_0.csv
-/training set stats/tf_1.csv
-/training set stats/track_stats.py
-/training set stats/track_feature_parser.py
+/stats/log_0_20180715_000000000000.csv
+/stats/log_mini.csv
+/stats/enums.py
+/stats/data_parser.py
+/stats/tf_0.csv
+/stats/tf_1.csv
+/stats/track_stats.py
+/stats/track_feature_parser.py
+/training_set/
+/tf/
+/training_set_mini/
+/test_set/
+/test_set_mini/
+/test_set/
