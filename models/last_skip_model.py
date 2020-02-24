@@ -6,21 +6,10 @@ class LastSkipModel(Model):
     def train(self, set):
         pass
 
-    def evaluate(self, set):
-        accs = []
-        for i in range(len(set.data['session_features'])):
-
-            sf = set.data['session_features'][i]
-            tf = set.data['track_features'][i]
-            skips = set.data['skips'][i]
-            prediction = self(sf, tf)
-            accs.append(self.average_accuracy(prediction, skips))
-        return np.mean(accs)
-
     # In the second half of session, repeats last skip behavior of the first half
-    def __call__(self, sf, tf):
+    def __call__(self, sf_first, sf_second, tf_first, tf_second):
         # skip 2 of the last song in the first half
-        return np.repeat(sf[-1][3], len(sf))
+        return np.repeat(sf_first[-1][3], len(sf_second))
 
 
 if __name__ == "__main__":

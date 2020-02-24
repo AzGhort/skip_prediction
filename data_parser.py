@@ -2,6 +2,7 @@ import enums
 import numpy as np
 import csv
 from track_feature_parser import TrackFeatureParser
+import constants
 
 
 class DataParser:
@@ -10,8 +11,10 @@ class DataParser:
 
     def get_data_from_file(self, file):
         cur_id = None
-        session_features = []
-        track_features = []
+        session_features_first_half = []
+        session_features_second_half = []
+        track_features_first_half = []
+        track_features_second_half = []
         skips = []
         with open(file) as csvfile:
             reader = csv.DictReader(csvfile)
@@ -22,13 +25,19 @@ class DataParser:
                 if row['session_id'] == cur_id:
                     session_lines.append(row)
                 else:
-                    sfs, tfs, skps = self._get_data_from_session(session_lines)
-                    session_features.append(sfs)
-                    track_features.append(tfs)
-                    skips.append(skps)
+                    sfs_first_half, sfs_second_half, tf_first_half, tf_second_half, s_skips = self._get_data_from_session(session_lines)
+                    session_features_first_half.append(sfs_first_half)
+                    session_features_second_half.append(sfs_second_half)
+                    track_features_first_half.append(tf_first_half)
+                    track_features_second_half.append(tf_second_half)
+                    skips.append(s_skips)
                     session_lines = [row]
                     cur_id = row['session_id']
-        data = {'session_features': session_features, 'track_features': track_features, 'skips': skips}
+        data = {constants.SF_FIRST_HALF: session_features_first_half,
+                constants.SF_SECOND_HALF: session_features_second_half,
+                constants.TF_FIRST_HALF: track_features_first_half,
+                constants.TF_SECOND_HALF: track_features_second_half,
+                constants.SKIPS: skips}
         return data
 
     def _get_data_from_session(self, session):
@@ -37,10 +46,12 @@ class DataParser:
         second_half = session[fraction:]
 
         skips = self._get_skips(second_half)
-        tfs = self._get_track_features(session)
-        sfs = self._get_session_metadata(first_half)
+        tfs_first_half = self._get_track_features(first_half)
+        tfs_second_half = self._get_track_features(second_half)
+        sfs_first_half = self._get_session_metadata(first_half)
+        sfs_second_half = self._get_session_metadata(second_half)
 
-        return sfs, tfs, skips
+        return sfs_first_half, sfs_second_half, tfs_first_half, tfs_second_half, skips
 
     def _get_skips(self, session):
         out = []

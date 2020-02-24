@@ -1,13 +1,13 @@
 import numpy as np
 from data_parser import DataParser
 import os
-
+import constants
 
 class SpotifyDataset:
     class Dataset:
         def __init__(self, data, shuffle_batches, seed=42):
             self._data = data
-            self._size = len(self._data['session_features'])
+            self._size = len(self._data[constants.SF_FIRST_HALF])
             self._shuffler = np.random.RandomState(seed) if shuffle_batches else None
 
         @property
@@ -27,7 +27,7 @@ class SpotifyDataset:
 
                 batch = {}
                 for key in self._data:
-                    batch[key] = self._data[key][batch_perm]
+                    batch[key] = np.array(self._data[key])[batch_perm]
                 yield batch
 
     def __init__(self, log_folder, tf_folder):
@@ -35,11 +35,21 @@ class SpotifyDataset:
         self.log_folder = log_folder
 
     def _split_to_dev_train(self, data, percents):
-        train_sf, dev_sf = self._split_to_percents(data['session_features'], percents)
-        train_tf, dev_tf = self._split_to_percents(data['track_features'], percents)
-        train_sk, dev_sk = self._split_to_percents(data['skips'], percents)
-        train_data = {'session_features': train_sf, 'track_features': train_tf, 'skips': train_sk}
-        dev_data = {'session_features': dev_sf, 'track_features': dev_tf, 'skips': dev_sk}
+        train_sf_first, dev_sf_first = self._split_to_percents(data[constants.SF_FIRST_HALF], percents)
+        train_sf_second, dev_sf_second = self._split_to_percents(data[constants.SF_SECOND_HALF], percents)
+        train_tf_first, dev_tf_first = self._split_to_percents(data[constants.TF_FIRST_HALF], percents)
+        train_tf_second, dev_tf_second = self._split_to_percents(data[constants.TF_SECOND_HALF], percents)
+        train_sk, dev_sk = self._split_to_percents(data[constants.SKIPS], percents)
+        train_data = {constants.SF_FIRST_HALF: train_sf_first,
+                      constants.SF_SECOND_HALF: train_sf_second,
+                      constants.TF_FIRST_HALF: train_tf_first,
+                      constants.TF_SECOND_HALF: train_tf_second,
+                      constants.SKIPS: train_sk}
+        dev_data = {constants.SF_FIRST_HALF: dev_sf_first,
+                    constants.SF_SECOND_HALF: dev_sf_second,
+                    constants.TF_FIRST_HALF: dev_tf_first,
+                    constants.TF_SECOND_HALF: dev_tf_second,
+                    constants.SKIPS: dev_sk}
         return self.Dataset(train_data, shuffle_batches=True), self.Dataset(dev_data, shuffle_batches=False)
 
     def _split_to_percents(self, data, percents):
@@ -49,7 +59,7 @@ class SpotifyDataset:
 
     def get_dataset(self, split_to_train_dev=True, percents=80):
         for filename in os.listdir(self.log_folder):
-            print("getting dataset from file " + filename)
+            print("Getting dataset from session metadata file " + filename)
             if filename.endswith('.csv'):
                 data = self.parser.get_data_from_file(os.path.join(self.log_folder, filename))
                 if split_to_train_dev:
