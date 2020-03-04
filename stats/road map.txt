@@ -1,0 +1,3 @@
+baseline modely:
+	- last skip first half model - 0.5428857252392607
+	- track features random forest model (8 est.) - cca 0.37

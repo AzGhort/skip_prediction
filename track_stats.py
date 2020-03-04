@@ -2,6 +2,7 @@ import csv
 import os
 import data_parser as lp
 import numpy as np
+from dataset_description import *
 
 
 def create_track_count_histogram(tracks):
@@ -41,9 +42,9 @@ for filename in os.listdir("."):
             reader = csv.DictReader(csvfile)
             for row in reader:
                 lp.DataParser.append_track_data(row, tracks)
-                id = row['session_id']
+                id = row[SessionFeaturesFields.SESSION_ID]
                 if cur_sess_id != id:
-                    session_lengths[int(row['session_length'])] += 1
+                    session_lengths[int(row[SessionFeaturesFields.SESSION_LENGTH])] += 1
                     cur_sess_id = id
 
 count_histogram = create_track_count_histogram(tracks)

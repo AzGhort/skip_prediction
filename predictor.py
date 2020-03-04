@@ -11,7 +11,7 @@ class Predictor:
 
     def train(self, episodes, train_folder, tf_folder):
         print("TRAINING")
-        print("Creating dataset, session features folder: \'" + str(train_folder)
+        print("Initializing, session features folder: \'" + str(train_folder)
               + "\', track features folder: \'" + str(tf_folder) + "\'.")
         spotify = SpotifyDataset(train_folder, tf_folder)
         for e in range(episodes):

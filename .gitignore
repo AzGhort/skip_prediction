@@ -22,4 +22,5 @@
 /training_set_mini/
 /test_set/
 /test_set_mini/
-/test_set/
+/one_file_train_set/
+/one_file_test_set/

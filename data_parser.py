@@ -2,7 +2,7 @@ import enums
 import numpy as np
 import csv
 from track_feature_parser import TrackFeatureParser
-import constants
+from dataset_description import *
 
 
 class DataParser:
@@ -21,8 +21,8 @@ class DataParser:
             session_lines = []
             for row in reader:
                 if cur_id is None:
-                    cur_id = row['session_id']
-                if row['session_id'] == cur_id:
+                    cur_id = row[SessionFeaturesFields.SESSION_ID]
+                if row[SessionFeaturesFields.SESSION_ID] == cur_id:
                     session_lines.append(row)
                 else:
                     sfs_first_half, sfs_second_half, tf_first_half, tf_second_half, s_skips = self._get_data_from_session(session_lines)
@@ -32,16 +32,16 @@ class DataParser:
                     track_features_second_half.append(tf_second_half)
                     skips.append(s_skips)
                     session_lines = [row]
-                    cur_id = row['session_id']
-        data = {constants.SF_FIRST_HALF: session_features_first_half,
-                constants.SF_SECOND_HALF: session_features_second_half,
-                constants.TF_FIRST_HALF: track_features_first_half,
-                constants.TF_SECOND_HALF: track_features_second_half,
-                constants.SKIPS: skips}
+                    cur_id = row[SessionFeaturesFields.SESSION_ID]
+        data = {DatasetDescription.SF_FIRST_HALF: session_features_first_half,
+                DatasetDescription.SF_SECOND_HALF: session_features_second_half,
+                DatasetDescription.TF_FIRST_HALF: track_features_first_half,
+                DatasetDescription.TF_SECOND_HALF: track_features_second_half,
+                DatasetDescription.SKIPS: skips}
         return data
 
     def _get_data_from_session(self, session):
-        fraction = int(float(session[0]['session_length']) * 0.5)
+        fraction = int(float(session[0][SessionFeaturesFields.SESSION_LENGTH]) * 0.5)
         first_half = session[:fraction]
         second_half = session[fraction:]
 
@@ -56,25 +56,25 @@ class DataParser:
     def _get_skips(self, session):
         out = []
         for sess in session:
-            out.append([DataParser.get_numeric_bool_from_string(sess['skip_2'])])
+            out.append([DataParser.get_numeric_bool_from_string(sess[SessionFeaturesFields.SKIP_2])])
         return np.array(out, np.float32)
 
     def _get_session_metadata(self, session):
         out = []
         for line in session:
             row = line
-            del row['session_id']
-            del row['track_id_clean']
-            del row['date']
-            row['skip_1'] = DataParser.get_numeric_bool_from_string(row['skip_1'])
-            row['skip_2'] = DataParser.get_numeric_bool_from_string(row['skip_2'])
-            row['skip_3'] = DataParser.get_numeric_bool_from_string(row['skip_3'])
-            row['not_skipped'] = DataParser.get_numeric_bool_from_string(row['not_skipped'])
-            row['hist_user_behavior_is_shuffle'] = DataParser.get_numeric_bool_from_string(row['hist_user_behavior_is_shuffle'])
-            row['premium'] = DataParser.get_numeric_bool_from_string(row['premium'])
-            row['context_type'] = DataParser.get_spotify_context_type_from_string(row['context_type'])
-            row['hist_user_behavior_reason_start'] = DataParser.get_reason_track_start_from_string(row['hist_user_behavior_reason_start'])
-            row['hist_user_behavior_reason_end'] = DataParser.get_reason_track_end_from_string(row['hist_user_behavior_reason_end'])
+            del row[SessionFeaturesFields.SESSION_ID]
+            del row[SessionFeaturesFields.TRACK_ID_CLEAN]
+            del row[SessionFeaturesFields.DATE]
+            row[SessionFeaturesFields.SKIP_1] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_1])
+            row[SessionFeaturesFields.SKIP_2] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_2])
+            row[SessionFeaturesFields.SKIP_3] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_3])
+            row[SessionFeaturesFields.NOT_SKIPPED] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.NOT_SKIPPED])
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_IS_SHUFFLE] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_IS_SHUFFLE])
+            row[SessionFeaturesFields.PREMIUM] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.PREMIUM])
+            row[SessionFeaturesFields.CONTEXT_TYPE] = DataParser.get_spotify_context_type_from_string(row[SessionFeaturesFields.CONTEXT_TYPE])
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START] = DataParser.get_reason_track_start_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START])
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END] = DataParser.get_reason_track_end_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END])
             ls = list(row.values())
             out.append(ls)
         return np.array(out, np.float32)
@@ -82,22 +82,22 @@ class DataParser:
     def _get_track_features(self, session):
         out = []
         for line in session:
-            out.append(self.track_features[line['track_id_clean']])
+            out.append(self.track_features[line[SessionFeaturesFields.TRACK_ID_CLEAN]])
         return np.array(out, np.float32)
 
     # static methods
     @staticmethod
     # count, skip1, skip2, skip3, not skipped
     def append_track_data(row, tracks):
-        s1 = DataParser.get_numeric_bool_from_string(row['skip_1'])
-        s2 = DataParser.get_numeric_bool_from_string(row['skip_2'])
-        s3 = DataParser.get_numeric_bool_from_string(row['skip_3'])
-        ns = DataParser.get_numeric_bool_from_string(row['not_skipped'])
+        s1 = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_1])
+        s2 = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_2])
+        s3 = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_3])
+        ns = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.NOT_SKIPPED])
         track_data = np.array([1, s1, s2, s3, ns], np.float32)
-        if row['track_id_clean'] not in tracks:
-            tracks[row['track_id_clean']] = track_data
+        if row[SessionFeaturesFields.TRACK_ID_CLEAN] not in tracks:
+            tracks[row[SessionFeaturesFields.TRACK_ID_CLEAN]] = track_data
         else:
-            tracks[row['track_id_clean']] += track_data
+            tracks[row[SessionFeaturesFields.TRACK_ID_CLEAN]] += track_data
 
     @staticmethod
     def get_numeric_bool_from_string(string):
@@ -108,75 +108,75 @@ class DataParser:
 
     @staticmethod
     def get_spotify_context_type_from_string(string):
-        if string == "editorial_playlist":
+        if string == SpotifyContextType.EDITORIAL_PLAYLIST:
             return enums.SpotifyContextType.EDITORIAL_PLAYLIST
-        elif string == "catalog":
+        elif string == SpotifyContextType.CATALOG:
             return enums.SpotifyContextType.CATALOG
-        elif string == "radio":
+        elif string == SpotifyContextType.RADIO:
             return enums.SpotifyContextType.RADIO
-        elif string == "charts":
+        elif string == SpotifyContextType.CHARTS:
             return enums.SpotifyContextType.CHARTS
-        elif string == "user_collection":
+        elif string == SpotifyContextType.USER_COLLECTION:
             return enums.SpotifyContextType.USER_COLLECTION
-        elif string == "personalized_playlist":
+        elif string == SpotifyContextType.PERSONALIZED_PLAYLIST:
             return enums.SpotifyContextType.PERSONALIZED_PLAYLIST
         else:
             return enums.SpotifyContextType.UNDEFINED
 
     @staticmethod
     def get_reason_track_start_from_string(string):
-        if string == "trackdone":
+        if string == ReasonTrackChange.TRACK_DONE:
             return enums.ReasonTrackStart.TRACK_DONE
-        elif string == "fwdbtn":
+        elif string == ReasonTrackChange.FORWARD_BUTTON:
             return enums.ReasonTrackStart.FORWARD_BUTTON
-        elif string == "backbtn":
+        elif string == ReasonTrackChange.BACK_BUTTON:
             return enums.ReasonTrackStart.BACKWARD_BUTTON
-        elif string == "clickrow":
+        elif string == ReasonTrackChange.CLICK_ROW:
             return enums.ReasonTrackStart.CLICK_ROW
-        elif string == "playbtn":
+        elif string == ReasonTrackChange.PLAY_BUTTON:
             return enums.ReasonTrackStart.PLAY_BUTTON
-        elif string == "trackerror":
+        elif string == ReasonTrackChange.TRACK_ERROR:
             return enums.ReasonTrackStart.TRACK_ERROR
-        elif string == "appload":
+        elif string == ReasonTrackChange.APP_LOAD:
             return enums.ReasonTrackStart.APP_LOAD
-        elif string == "popup":
+        elif string == ReasonTrackChange.POP_UP:
             return enums.ReasonTrackStart.POP_UP
-        elif string == "uriopen":
+        elif string == ReasonTrackChange.URI_OPEN:
             return enums.ReasonTrackStart.URI_OPEN
-        elif string == "clickrow":
+        elif string == ReasonTrackChange.CLICK_ROW:
             return enums.ReasonTrackStart.CLICK_ROW
-        elif string == "clickside":
+        elif string == ReasonTrackChange.CLICK_SIDE:
             return enums.ReasonTrackStart.CLICK_SIDE
-        elif string == "remote":
+        elif string == ReasonTrackChange.REMOTE:
             return enums.ReasonTrackStart.REMOTE
         else:
             return enums.ReasonTrackStart.UNDEFINED
 
     @staticmethod
     def get_reason_track_end_from_string(string):
-        if string == "fwdbtn":
+        if string == ReasonTrackChange.FORWARD_BUTTON:
             return enums.ReasonTrackEnd.FORWARD_BUTTON
-        elif string == "backbtn":
+        elif string == ReasonTrackChange.BACK_BUTTON:
             return enums.ReasonTrackEnd.BACKWARD_BUTTON
-        elif string == "trackdone":
+        elif string == ReasonTrackChange.TRACK_DONE:
             return enums.ReasonTrackEnd.TRACK_DONE
-        elif string == "endplay":
+        elif string == ReasonTrackChange.END_PLAY:
             return enums.ReasonTrackEnd.END_PLAY
-        elif string == "logout":
+        elif string == ReasonTrackChange.LOGOUT:
             return enums.ReasonTrackEnd.LOGOUT
-        elif string == "trackerror":
+        elif string == ReasonTrackChange.TRACK_ERROR:
             return enums.ReasonTrackEnd.TRACK_ERROR
-        elif string == "remote":
+        elif string == ReasonTrackChange.REMOTE:
             return enums.ReasonTrackEnd.REMOTE
-        elif string == "popup":
+        elif string == ReasonTrackChange.POP_UP:
             return enums.ReasonTrackEnd.POP_UP
-        elif string == "appload":
+        elif string == ReasonTrackChange.APP_LOAD:
             return enums.ReasonTrackEnd.APP_LOAD
-        elif string == "uriopen":
+        elif string == ReasonTrackChange.URI_OPEN:
             return enums.ReasonTrackEnd.URI_OPEN
-        elif string == "clickrow":
+        elif string == ReasonTrackChange.CLICK_ROW:
             return enums.ReasonTrackEnd.CLICK_ROW
-        elif string == "clickside":
+        elif string == ReasonTrackChange.CLICK_SIDE:
             return enums.ReasonTrackEnd.CLICK_SIDE
         else:
             return enums.ReasonTrackEnd.UNDEFINED

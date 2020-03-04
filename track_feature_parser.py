@@ -1,6 +1,7 @@
 import numpy as np
 import csv
 import os
+from dataset_description import *
 
 
 class TrackFeatureParser:
@@ -10,9 +11,9 @@ class TrackFeatureParser:
         with open(file) as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                id = row['track_id']
-                del row['track_id']
-                row['mode'] = 1. if row['mode'] == 'major' else 0.
+                id = row[TrackFeatureFields.TRACK_ID]
+                del row[TrackFeatureFields.TRACK_ID]
+                row[TrackFeatureFields.MODE] = 1. if row[TrackFeatureFields.MODE] == TrackMode.MAJOR else 0.
                 ls = list(row.values())
                 features_map[id] = np.array(ls, np.float32)
         map.update(features_map)
@@ -34,4 +35,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     map = TrackFeatureParser.get_track_features(args.folder)
-    pass
