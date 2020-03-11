@@ -1,5 +1,5 @@
 import numpy as np
-import dataset_description
+from dataset_description import *
 
 
 class Model:
@@ -8,18 +8,19 @@ class Model:
 
     def evaluate(self, set):
         accuracies = []
-        for i in range(len(set.data[dataset_description.SF_FIRST_HALF])):
-            sf_first = set.data[dataset_description.SF_FIRST_HALF][i]
-            sf_second = set.data[dataset_description.SF_SECOND_HALF][i]
-            tf_first = set.data[dataset_description.TF_FIRST_HALF][i]
-            tf_second = set.data[dataset_description.TF_SECOND_HALF][i]
-            skips = set.data[dataset_description.SKIPS][i]
+        for i in range(len(set.data[DatasetDescription.SF_FIRST_HALF])):
+            sf_first = set.data[DatasetDescription.SF_FIRST_HALF][i]
+            sf_second = set.data[DatasetDescription.SF_SECOND_HALF][i]
+            tf_first = set.data[DatasetDescription.TF_FIRST_HALF][i]
+            tf_second = set.data[DatasetDescription.TF_SECOND_HALF][i]
+            skips = set.data[DatasetDescription.SKIPS][i]
             prediction = self(sf_first, sf_second, tf_first, tf_second)
             accuracies.append(self.average_accuracy(prediction, skips))
         return np.mean(accuracies)
 
     @staticmethod
     def average_accuracy(prediction, target):
+        prediction = np.array(prediction)
         t = len(prediction)
         prediction.shape = (t, 1)
         aa = 0

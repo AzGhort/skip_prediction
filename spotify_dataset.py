@@ -5,6 +5,10 @@ from dataset_description import *
 
 
 class SpotifyDataset:
+    SKIP = 1
+    TRACK_FEATURES = 29
+    SESSION_FEATURES = 18
+
     class Dataset:
         def __init__(self, data, shuffle_batches, seed=42):
             self._data = data

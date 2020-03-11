@@ -42,5 +42,5 @@ if __name__ == "__main__":
     predictor = Predictor(model)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
     maa = predictor.evaluate_on_files(args.test_folder, args.tf_folder)
-    print("Last user skip model achieved " + str(maa) + " mean average accuracy")
+    print("Track features random forest model achieved " + str(maa) + " mean average accuracy")
     print(model.classifier.feature_importances_)
