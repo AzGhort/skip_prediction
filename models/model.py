@@ -1,8 +1,15 @@
 import numpy as np
 from dataset_description import *
+from preprocessing.standard_scaler import StandardScaler
+from preprocessing.normalizer import Normalizer
+from preprocessing.none_preprocessor import NonePreprocessor
+from preprocessing.min_max_scaler import MinMaxScaler
 
 
 class Model:
+    def __init__(self, preprocessor=None):
+        self.preprocessor = preprocessor
+
     def train(self, set):
         raise NotImplementedError()
 
@@ -18,8 +25,7 @@ class Model:
             accuracies.append(self.average_accuracy(prediction, skips))
         return np.mean(accuracies)
 
-    @staticmethod
-    def average_accuracy(prediction, target):
+    def average_accuracy(self, prediction, target):
         prediction = np.array(prediction)
         t = len(prediction)
         prediction.shape = (t, 1)
@@ -31,5 +37,19 @@ class Model:
                 aa += (correct * 1.0 / (i + 1))
         return aa * 1.0 / t
 
-    def __call__(self, sf_first, sf_second, tf_first, tf_second, *args, **kwargs):
+    def __call__(self, sf_first, sf_second, tf_first, tf_second):
         raise NotImplementedError()
+
+    def preprocess(self, data):
+        return self.preprocessor.transform(data)
+
+    @staticmethod
+    def get_preprocessor(name):
+        if name == "StandardScaler":
+            return StandardScaler()
+        elif name == "Normalizer":
+            return Normalizer()
+        elif name == "MinMaxScaler":
+            return MinMaxScaler()
+        else:
+            return NonePreprocessor()

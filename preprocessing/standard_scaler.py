@@ -1,13 +1,15 @@
-from data_preprocessor import DataPreprocessor
 from sklearn import preprocessing
-import numpy as np
+from preprocessing.feature_stats import *
+from preprocessing.data_preprocessor import DataPreprocessor
 
 
 class StandardScaler(DataPreprocessor):
-    def __init__(self, stats):
-        self.preprocessor = preprocessing.StandardScaler()
-        self.preprocessor.mean_ = np.array(stats['mean'])
-        self.preprocessor.var_ = np.array([s ** 2 for s in stats['std']])
+    def __init__(self):
+        preprocessor = preprocessing.StandardScaler(copy=False)
+        preprocessor.mean_ = Stats['mean']
+        preprocessor.var_ = np.array([s ** 2 for s in Stats['std']])
+        preprocessor.scale_ = Stats['std']
+        self.preprocessor = preprocessor
 
     def transform(self, data):
         return self.preprocessor.transform(data)

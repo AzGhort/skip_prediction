@@ -26,6 +26,8 @@ class Predictor:
     def evaluate_on_files(self, folder, tf_folder):
         accs = []
         print("EVALUATING")
+        if folder is None:
+            return "No test folder"
         print("Creating dataset, session features folder: \'" + str(folder)
               + "\', track features folder: \'" + str(tf_folder) + "\'.")
         spotify = SpotifyDataset(folder, tf_folder)
