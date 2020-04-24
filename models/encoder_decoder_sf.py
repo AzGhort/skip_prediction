@@ -8,41 +8,45 @@ import os
 
 # encoder-decoder architecture, predicting the whole session features
 class EncoderDecoderSF(Model):
-    def __init__(self, batch_size, preprocessor=None):
+    def __init__(self, batch_size):
         # SESSION REPRESENTATION
         # ---------------------------------------------------------------------------
         # session features
-        sf_input = tf.keras.layers.Input(shape=(None,), dtype=tf.float32, name="SF_Input")
-        sf_embed = tf.keras.layers.Embedding(input_dim=1000, output_dim=64, name="SF_Embedding")(sf_input)
-        sf_batch_norm = tf.keras.layers.BatchNormalization(name="SF_BatchNorm")(sf_embed)
+        sf_input = tf.keras.layers.Input(shape=(10, SpotifyDataset.SESSION_FEATURES), dtype=tf.float32, name="SF_Input")
+        sf_flatten = tf.keras.layers.Flatten(name="SF_Flatten")(sf_input)
+        # sf_embed = tf.keras.layers.Embedding(2048, 32, name="SF_Embedding", mask_zero=True)(sf_flatten)
+        sf_batch_norm = tf.keras.layers.BatchNormalization(name="SF_BatchNorm")(sf_input)
         sf_transformer = tf.keras.layers.Dense(64, activation=tf.nn.relu, name="SF_Transformer")(sf_batch_norm)
 
         # track features
         # use same embedding for first and second half track features
-        tf_embed = tf.keras.layers.Embedding(128, 64, name="TF_Embedding")
+        tf_flatten = tf.keras.layers.Flatten(name="TF_Flatten")
+        # tf_embed = tf.keras.layers.Embedding(2048, 32, name="TF_Embedding", mask_zero=True)
         tf_batch_norm = tf.keras.layers.BatchNormalization(name="TF_BatchNorm")
         tf_transformer = tf.keras.layers.Dense(64, activation=tf.nn.relu, name="TF_Transformer")
 
         # first half tf
-        first_half_tf_input = tf.keras.layers.Input(shape=(None,), dtype=tf.float32, name="FirstHalf_TF_Input")
-        first_half_tf_embed = tf_embed(first_half_tf_input)
-        first_half_tf_batch_norm = tf_batch_norm(first_half_tf_embed)
+        first_half_tf_input = tf.keras.layers.Input(shape=(10, SpotifyDataset.TRACK_FEATURES), dtype=tf.float32, name="FirstHalf_TF_Input")
+        first_half_tf_flatten = tf_flatten(first_half_tf_input)
+        # first_half_tf_embed = tf_embed(first_half_tf_flatten)
+        first_half_tf_batch_norm = tf_batch_norm(first_half_tf_input)
         first_half_tf_transformer = tf_transformer(first_half_tf_batch_norm)
 
         # second half tf
-        second_half_tf_input = tf.keras.layers.Input(shape=(None,), dtype=tf.float32, name="SecondHalf_TF_Input")
-        second_half_tf_embed = tf_embed(second_half_tf_input)
-        second_half_tf_batch_norm = tf_batch_norm(second_half_tf_embed)
+        second_half_tf_input = tf.keras.layers.Input(shape=(10, SpotifyDataset.TRACK_FEATURES), dtype=tf.float32, name="SecondHalf_TF_Input")
+        second_half_tf_flatten = tf_flatten(second_half_tf_input)
+        # second_half_tf_embed = tf_embed(second_half_tf_flatten)
+        second_half_tf_batch_norm = tf_batch_norm(second_half_tf_input)
         second_half_tf_transformer = tf_transformer(second_half_tf_batch_norm)
 
         # representation
-        first_half_features = tf.keras.layers.Concatenate(name="FirstHalf_Concatenate")([
+        first_half_features = tf.keras.layers.Concatenate(axis=1, name="FirstHalf_Concatenate")([
             sf_transformer,
             first_half_tf_transformer
         ])
-
         sf_bidir = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64), name="SF_Bidirectional")(first_half_features)
-        tf_features = tf.keras.layers.Concatenate(name="SecondHalfConcatenate")([
+
+        tf_features = tf.keras.layers.Concatenate(axis=1, name="SecondHalfConcatenate")([
             first_half_tf_transformer,
             second_half_tf_transformer
         ])
@@ -83,8 +87,7 @@ class EncoderDecoderSF(Model):
                                                          name="PreviousWindowPredicted_SF")
 
         decoders = [
-            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_sequences=True, return_state=True),
-                                          name="Decoder_0"),
+            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_sequences=True, return_state=True), name="Decoder_0"),
             tf.keras.layers.LSTM(256, return_sequences=True, return_state=True, name="Decoder_1"),
             tf.keras.layers.Dropout(0.5, name="Decoder_2"),
             tf.keras.layers.Dense(SpotifyDataset.SESSION_FEATURES, activation=None, name="Decoder_3")
@@ -131,15 +134,14 @@ class EncoderDecoderSF(Model):
                                       outputs=[out_combined])
         self.batch_size = batch_size
         self.verbose_each = 500
-        super(EncoderDecoderSF, self).__init__(preprocessor)
 
         self.network.compile(
             optimizer=tf.keras.optimizers.Adam(),
             loss=tf.keras.losses.MeanSquaredError(),
             metrics=[tf.keras.metrics.Accuracy()]
         )
-        # os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
-        # tf.keras.utils.plot_model(self.network, to_file='encoder_decoder_session_features_prediction.png')
+        #os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
+        #tf.keras.utils.plot_model(self.network, to_file='encoder_decoder_session_features_prediction.png')
 
     @staticmethod
     def _repeat_vector(args):
@@ -155,30 +157,27 @@ class EncoderDecoderSF(Model):
         batch_index = 0
         for batch in set.batches(self.batch_size):
             batch_index += 1
-            tfs_first = []
-            tfs_second = []
-            sf_first = batch[DatasetDescription.SF_FIRST_HALF]
-            sf_second = batch[DatasetDescription.SF_SECOND_HALF]
-            for i in range(len(batch[DatasetDescription.SF_FIRST_HALF])):
-                a = 5
-            x = np.concatenate(tfs)
-            y = sf_second
-            loss, metric = self.network.train_on_batch(x, y)
+            sfs_first_half = np.zeros((self.batch_size, 10, SpotifyDataset.SESSION_FEATURES))
+            tfs_first_half = np.zeros((self.batch_size, 10, SpotifyDataset.TRACK_FEATURES))
+            tfs_second_half = np.zeros((self.batch_size, 10, SpotifyDataset.TRACK_FEATURES))
+            sfs_second_half = np.zeros((self.batch_size, 10, SpotifyDataset.SESSION_FEATURES))
+            last_sfs_first_half = np.zeros((self.batch_size, 1, SpotifyDataset.SESSION_FEATURES))
+            for i in range(self.batch_size):
+                last_sfs_first_half[i] = batch[DatasetDescription.SF_FIRST_HALF][i][-1].reshape((1, SpotifyDataset.SESSION_FEATURES))
+                sfs_second_half[i] = np.pad(batch[DatasetDescription.SF_SECOND_HALF][i], [(0, 10 - batch[DatasetDescription.SF_SECOND_HALF][i].shape[0]), (0, 0)])
+                sfs_first_half[i] = np.pad(batch[DatasetDescription.SF_FIRST_HALF][i], [(0, 10 - batch[DatasetDescription.SF_FIRST_HALF][i].shape[0]), (0, 0)])
+                tfs_first_half[i] = np.pad(batch[DatasetDescription.TF_FIRST_HALF][i], [(0, 10 - batch[DatasetDescription.TF_FIRST_HALF][i].shape[0]), (0, 0)])
+                tfs_second_half[i] = np.pad(batch[DatasetDescription.TF_SECOND_HALF][i], [(0, 10 - batch[DatasetDescription.TF_SECOND_HALF][i].shape[0]), (0, 0)])
+
+            loss, metric = self.network.train_on_batch([sfs_first_half, tfs_first_half, tfs_second_half,
+                                                        last_sfs_first_half], sfs_second_half)
             if batch_index % self.verbose_each == 0:
                 print("---- loss of batch number " + str(batch_index) + " batches: " + str(loss))
                 print("---- binary accuracy of batch number " + str(batch_index) + " batches: " + str(metric))
 
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
-        ret = []
-        for tf in tf_second:
-            ret.append(np.around(self.network(self.preprocess(tf)))[0])
-        return np.array(ret)
-
-    def preprocess(self, data):
-        tf_spotify = data[:21].reshape(1, -1)
-        acoustic_vectors = data[21:].reshape(1, -1)
-        preprocessed = super(EncoderDecoderSF, self).preprocess(tf_spotify)
-        return np.concatenate((preprocessed, acoustic_vectors), axis=1)
+        last_sf_first_half = sf_first[-1]
+        return self.network([sf_first, tf_first, tf_second, last_sf_first_half])[2]
 
 
 if __name__ == "__main__":
@@ -190,14 +189,14 @@ if __name__ == "__main__":
     parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "one_file_test_set", type=str, help="Name of the test log folder.")
     parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
-    parser.add_argument("--batch_size", default=128, type=int, help="Size of the batch.")
+    parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
-    parser.add_argument("--preprocessor", default="NonePreprocessor", type=str, help="Name of the preprocessor to use.")
+    parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
+    parser.add_argument("--sf_preprocessor", default="NonePreprocessor", type=str, help="Name of the session features preprocessor to use.")
     args = parser.parse_args()
 
-    preprocessor = Model.get_preprocessor(args.preprocessor)
-    model = EncoderDecoderSF(args.batch_size, preprocessor)
-    predictor = Predictor(model)
+    model = EncoderDecoderSF(args.batch_size)
+    predictor = Predictor(model, args.tf_preprocessor, args.sf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
     maa = predictor.evaluate_on_files(args.test_folder, args.tf_folder)
     print(str(args))

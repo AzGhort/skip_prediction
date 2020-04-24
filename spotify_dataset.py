@@ -2,6 +2,7 @@ import numpy as np
 from data_parser import DataParser
 import os
 from dataset_description import *
+from preprocessing.none_preprocessor import NonePreprocessor
 
 
 class SpotifyDataset:
@@ -35,8 +36,8 @@ class SpotifyDataset:
                     batch[key] = np.array(self._data[key])[batch_perm]
                 yield batch
 
-    def __init__(self, log_folder, tf_folder):
-        self.parser = DataParser(tf_folder)
+    def __init__(self, log_folder, tf_folder, tf_preprocessor):
+        self.parser = DataParser(tf_folder, tf_preprocessor)
         self.log_folder = log_folder
 
     def _split_to_dev_train(self, data, percents):

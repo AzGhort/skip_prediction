@@ -6,8 +6,9 @@ from dataset_description import *
 
 
 class DataParser:
-    def __init__(self, tf_folder):
-        self.track_features = TrackFeatureParser.get_track_features(tf_folder)
+    def __init__(self, tf_folder, tf_preprocessor):
+        tfp = TrackFeatureParser(tf_preprocessor)
+        self.track_features = tfp.get_track_features(tf_folder)
 
     def get_data_from_file(self, file):
         cur_id = None

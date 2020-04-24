@@ -7,9 +7,6 @@ from preprocessing.min_max_scaler import MinMaxScaler
 
 
 class Model:
-    def __init__(self, preprocessor=None):
-        self.preprocessor = preprocessor
-
     def train(self, set):
         raise NotImplementedError()
 
@@ -40,16 +37,4 @@ class Model:
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         raise NotImplementedError()
 
-    def preprocess(self, data):
-        return self.preprocessor.transform(data)
 
-    @staticmethod
-    def get_preprocessor(name):
-        if name == "StandardScaler":
-            return StandardScaler()
-        elif name == "Normalizer":
-            return Normalizer()
-        elif name == "MinMaxScaler":
-            return MinMaxScaler()
-        else:
-            return NonePreprocessor()

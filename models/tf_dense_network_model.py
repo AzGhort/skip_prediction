@@ -7,7 +7,7 @@ import os
 
 
 class TrackFeaturesDenseNetwork(Model):
-    def __init__(self, hidden_layer_size, hidden_layers_count, batch_size, preprocessor=None):
+    def __init__(self, hidden_layer_size, hidden_layers_count, batch_size):
         layers = [tf.keras.layers.InputLayer(SpotifyDataset.TRACK_FEATURES)]
         for _ in range(hidden_layers_count):
             layers.append(tf.keras.layers.Dense(hidden_layer_size, activation=tf.nn.relu))
@@ -15,7 +15,6 @@ class TrackFeaturesDenseNetwork(Model):
         self.network = tf.keras.Sequential(layers)
         self.batch_size = batch_size
         self.verbose_each = 1000
-        super(TrackFeaturesDenseNetwork, self).__init__(preprocessor)
 
         self.network.compile(
             optimizer=tf.keras.optimizers.Adam(),
@@ -32,7 +31,7 @@ class TrackFeaturesDenseNetwork(Model):
             for j in range(len(batch[DatasetDescription.SF_FIRST_HALF])):
                 tf_second, session_skip = batch[DatasetDescription.TF_SECOND_HALF][j], batch[DatasetDescription.SKIPS][j].ravel()
                 for i in range(len(session_skip)):
-                    tfs.append(self.preprocess(tf_second[i]))
+                    tfs.append([tf_second[i]])
                     skips.append([session_skip[i]])
             x = np.concatenate(tfs)
             y = np.array(skips)
@@ -44,14 +43,8 @@ class TrackFeaturesDenseNetwork(Model):
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         ret = []
         for tf in tf_second:
-            ret.append(np.around(self.network(self.preprocess(tf)))[0])
+            ret.append(np.around(self.network(tf))[0])
         return np.array(ret)
-
-    def preprocess(self, data):
-        tf_spotify = data[:21].reshape(1, -1)
-        acoustic_vectors = data[21:].reshape(1, -1)
-        preprocessed = super(TrackFeaturesDenseNetwork, self).preprocess(tf_spotify)
-        return np.concatenate((preprocessed, acoustic_vectors), axis=1)
 
 
 if __name__ == "__main__":
@@ -67,12 +60,11 @@ if __name__ == "__main__":
     parser.add_argument("--layers", default=4, type=int, help="Number of layers.")
     parser.add_argument("--batch_size", default=128, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
-    parser.add_argument("--preprocessor", default="NonePreprocessor", type=str, help="Name of the preprocessor to use.")
+    parser.add_argument("--tf_preprocessor", default="NonePreprocessor", type=str, help="Name of the track features preprocessor to use.")
     args = parser.parse_args()
 
-    preprocessor = Model.get_preprocessor(args.preprocessor)
-    model = TrackFeaturesDenseNetwork(args.hidden_layer, args.layers, args.batch_size, preprocessor)
-    predictor = Predictor(model)
+    model = TrackFeaturesDenseNetwork(args.hidden_layer, args.layers, args.batch_size)
+    predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
     maa = predictor.evaluate_on_files(args.test_folder, args.tf_folder)
     print(str(args))
