@@ -26,14 +26,13 @@ class Predictor:
                 dev_accs.append(self.model.evaluate(dev_set))
             print("Evaluating after " + str(e) + " episodes:" + str(np.mean(dev_accs)) + " mean average accuracy")
 
-    def evaluate_on_files(self, folder, tf_folder):
+    def evaluate(self, folder, tf_folder):
         accs = []
         print("EVALUATING")
         if folder is None:
             return "No test folder"
-        print("Creating dataset, session features folder: \'" + str(folder)
-              + "\', track features folder: \'" + str(tf_folder) + "\'.")
-        spotify = SpotifyDataset(folder, tf_folder)
+        print("Creating dataset, session features folder: \'" + str(folder) + "\', track features folder: \'" + str(tf_folder) + "\'.")
+        spotify = SpotifyDataset(folder, tf_folder, self.tf_preprocessor_name)
         for test_set in spotify.get_dataset(False):
             print("Dataset created succesfully.")
             acc = self.model.evaluate(test_set)

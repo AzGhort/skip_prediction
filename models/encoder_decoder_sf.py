@@ -13,28 +13,28 @@ class EncoderDecoderSF(Model):
         # ---------------------------------------------------------------------------
         # session features
         sf_input = tf.keras.layers.Input(shape=(10, SpotifyDataset.SESSION_FEATURES), dtype=tf.float32, name="SF_Input")
-        sf_flatten = tf.keras.layers.Flatten(name="SF_Flatten")(sf_input)
+        # sf_flatten = tf.keras.layers.Flatten(name="SF_Flatten")(sf_input)
         # sf_embed = tf.keras.layers.Embedding(2048, 32, name="SF_Embedding", mask_zero=True)(sf_flatten)
         sf_batch_norm = tf.keras.layers.BatchNormalization(name="SF_BatchNorm")(sf_input)
         sf_transformer = tf.keras.layers.Dense(64, activation=tf.nn.relu, name="SF_Transformer")(sf_batch_norm)
 
         # track features
         # use same embedding for first and second half track features
-        tf_flatten = tf.keras.layers.Flatten(name="TF_Flatten")
+        # tf_flatten = tf.keras.layers.Flatten(name="TF_Flatten")
         # tf_embed = tf.keras.layers.Embedding(2048, 32, name="TF_Embedding", mask_zero=True)
         tf_batch_norm = tf.keras.layers.BatchNormalization(name="TF_BatchNorm")
         tf_transformer = tf.keras.layers.Dense(64, activation=tf.nn.relu, name="TF_Transformer")
 
         # first half tf
         first_half_tf_input = tf.keras.layers.Input(shape=(10, SpotifyDataset.TRACK_FEATURES), dtype=tf.float32, name="FirstHalf_TF_Input")
-        first_half_tf_flatten = tf_flatten(first_half_tf_input)
+        # first_half_tf_flatten = tf_flatten(first_half_tf_input)
         # first_half_tf_embed = tf_embed(first_half_tf_flatten)
         first_half_tf_batch_norm = tf_batch_norm(first_half_tf_input)
         first_half_tf_transformer = tf_transformer(first_half_tf_batch_norm)
 
         # second half tf
         second_half_tf_input = tf.keras.layers.Input(shape=(10, SpotifyDataset.TRACK_FEATURES), dtype=tf.float32, name="SecondHalf_TF_Input")
-        second_half_tf_flatten = tf_flatten(second_half_tf_input)
+        # second_half_tf_flatten = tf_flatten(second_half_tf_input)
         # second_half_tf_embed = tf_embed(second_half_tf_flatten)
         second_half_tf_batch_norm = tf_batch_norm(second_half_tf_input)
         second_half_tf_transformer = tf_transformer(second_half_tf_batch_norm)
@@ -133,7 +133,7 @@ class EncoderDecoderSF(Model):
         self.network = tf.keras.Model(inputs=[sf_input, first_half_tf_input, second_half_tf_input, previous_predicted_input],
                                       outputs=[out_combined])
         self.batch_size = batch_size
-        self.verbose_each = 500
+        self.verbose_each = 10
 
         self.network.compile(
             optimizer=tf.keras.optimizers.Adam(),
@@ -153,31 +153,49 @@ class EncoderDecoderSF(Model):
     def _get_nth_lambda_layer(tensor, n):
         return tf.keras.layers.Lambda(lambda x: x[:, n])(tensor)
 
+    @staticmethod
+    def _pad_input(features):
+        return np.pad(features, [(0, 10 - features.shape[0]), (0, 0)])
+
+    @staticmethod
+    def _get_last_session_features(sf_first_half):
+        return sf_first_half[-1].reshape((1, SpotifyDataset.SESSION_FEATURES))
+
     def train(self, set):
         batch_index = 0
         for batch in set.batches(self.batch_size):
+            current_batch_size = min(self.batch_size, batch[DatasetDescription.SF_FIRST_HALF].shape[0])
             batch_index += 1
-            sfs_first_half = np.zeros((self.batch_size, 10, SpotifyDataset.SESSION_FEATURES))
-            tfs_first_half = np.zeros((self.batch_size, 10, SpotifyDataset.TRACK_FEATURES))
-            tfs_second_half = np.zeros((self.batch_size, 10, SpotifyDataset.TRACK_FEATURES))
-            sfs_second_half = np.zeros((self.batch_size, 10, SpotifyDataset.SESSION_FEATURES))
-            last_sfs_first_half = np.zeros((self.batch_size, 1, SpotifyDataset.SESSION_FEATURES))
-            for i in range(self.batch_size):
-                last_sfs_first_half[i] = batch[DatasetDescription.SF_FIRST_HALF][i][-1].reshape((1, SpotifyDataset.SESSION_FEATURES))
-                sfs_second_half[i] = np.pad(batch[DatasetDescription.SF_SECOND_HALF][i], [(0, 10 - batch[DatasetDescription.SF_SECOND_HALF][i].shape[0]), (0, 0)])
-                sfs_first_half[i] = np.pad(batch[DatasetDescription.SF_FIRST_HALF][i], [(0, 10 - batch[DatasetDescription.SF_FIRST_HALF][i].shape[0]), (0, 0)])
-                tfs_first_half[i] = np.pad(batch[DatasetDescription.TF_FIRST_HALF][i], [(0, 10 - batch[DatasetDescription.TF_FIRST_HALF][i].shape[0]), (0, 0)])
-                tfs_second_half[i] = np.pad(batch[DatasetDescription.TF_SECOND_HALF][i], [(0, 10 - batch[DatasetDescription.TF_SECOND_HALF][i].shape[0]), (0, 0)])
+            sfs_first_half = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES))
+            tfs_first_half = np.zeros((current_batch_size, 10, SpotifyDataset.TRACK_FEATURES))
+            tfs_second_half = np.zeros((current_batch_size, 10, SpotifyDataset.TRACK_FEATURES))
+            sfs_second_half = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES))
+            last_sfs_first_half = np.zeros((current_batch_size, 1, SpotifyDataset.SESSION_FEATURES))
 
-            loss, metric = self.network.train_on_batch([sfs_first_half, tfs_first_half, tfs_second_half,
-                                                        last_sfs_first_half], sfs_second_half)
+            for i in range(current_batch_size):
+                last_sfs_first_half[i] = self._get_last_session_features(batch[DatasetDescription.SF_FIRST_HALF][i])
+                sfs_second_half[i] = self._pad_input(batch[DatasetDescription.SF_SECOND_HALF][i])
+                sfs_first_half[i] = self._pad_input(batch[DatasetDescription.SF_FIRST_HALF][i])
+                tfs_first_half[i] = self._pad_input(batch[DatasetDescription.TF_FIRST_HALF][i])
+                tfs_second_half[i] = self._pad_input(batch[DatasetDescription.TF_SECOND_HALF][i])
+
+            loss, metric = self.network.train_on_batch([sfs_first_half, tfs_first_half, tfs_second_half, last_sfs_first_half], sfs_second_half)
             if batch_index % self.verbose_each == 0:
-                print("---- loss of batch number " + str(batch_index) + " batches: " + str(loss))
-                print("---- binary accuracy of batch number " + str(batch_index) + " batches: " + str(metric))
+                print("--- loss of batch number " + str(batch_index) + ": " + str(loss))
+                print("--- metric of batch number " + str(batch_index) + ": " + str(metric))
 
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
-        last_sf_first_half = sf_first[-1]
-        return self.network([sf_first, tf_first, tf_second, last_sf_first_half])[2]
+        second_half_real_length = sf_second.shape[0]
+        last_sf_first_half = self._get_last_session_features(sf_first).reshape((1, 1, SpotifyDataset.SESSION_FEATURES))
+        sf_first = self._pad_input(sf_first).reshape((1, 10, SpotifyDataset.SESSION_FEATURES))
+        tf_first = self._pad_input(tf_first).reshape((1, 10, SpotifyDataset.TRACK_FEATURES))
+        tf_second = self._pad_input(tf_second).reshape((1, 10, SpotifyDataset.TRACK_FEATURES))
+        network_output = self.network([sf_first, tf_first, tf_second, last_sf_first_half]).numpy()
+        predictions = []
+        assert network_output.shape == (1, 10, SpotifyDataset.SESSION_FEATURES)
+        for i in range(second_half_real_length):
+            predictions.append(np.around(network_output[0][i][2]))
+        return predictions
 
 
 if __name__ == "__main__":
@@ -198,7 +216,7 @@ if __name__ == "__main__":
     model = EncoderDecoderSF(args.batch_size)
     predictor = Predictor(model, args.tf_preprocessor, args.sf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
-    maa = predictor.evaluate_on_files(args.test_folder, args.tf_folder)
+    maa = predictor.evaluate(args.test_folder, args.tf_folder)
     print(str(args))
     print("Encoder-decoder session features prediction model achieved " + str(maa) + " mean average accuracy")
     print("------------------------------------")

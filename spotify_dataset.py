@@ -2,7 +2,6 @@ import numpy as np
 from data_parser import DataParser
 import os
 from dataset_description import *
-from preprocessing.none_preprocessor import NonePreprocessor
 
 
 class SpotifyDataset:

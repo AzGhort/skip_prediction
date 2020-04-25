@@ -1,9 +1,5 @@
 import numpy as np
 from dataset_description import *
-from preprocessing.standard_scaler import StandardScaler
-from preprocessing.normalizer import Normalizer
-from preprocessing.none_preprocessor import NonePreprocessor
-from preprocessing.min_max_scaler import MinMaxScaler
 
 
 class Model:
@@ -22,7 +18,8 @@ class Model:
             accuracies.append(self.average_accuracy(prediction, skips))
         return np.mean(accuracies)
 
-    def average_accuracy(self, prediction, target):
+    @staticmethod
+    def average_accuracy(prediction, target):
         prediction = np.array(prediction)
         t = len(prediction)
         prediction.shape = (t, 1)
