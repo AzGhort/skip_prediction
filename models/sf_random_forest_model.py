@@ -74,7 +74,7 @@ if __name__ == "__main__":
     model = SessionFeaturesRandomForestModel(args.estimators, args.window)
     predictor = Predictor(model)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
-    maa = predictor.evaluate_on_files(args.test_folder, args.tf_folder)
+    maa = predictor.evaluate(args.test_folder, args.tf_folder)
     print("Session features random forest model achieved " + str(maa) + " mean average accuracy")
     print(model.regressor.feature_importances_)
     print("------------------------------------")

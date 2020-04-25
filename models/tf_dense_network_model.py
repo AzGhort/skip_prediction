@@ -14,7 +14,7 @@ class TrackFeaturesDenseNetwork(Model):
         layers.append(tf.keras.layers.Dense(1, activation=tf.nn.sigmoid))
         self.network = tf.keras.Sequential(layers)
         self.batch_size = batch_size
-        self.verbose_each = 1000
+        self.verbose_each = 10
 
         self.network.compile(
             optimizer=tf.keras.optimizers.Adam(),
@@ -58,15 +58,15 @@ if __name__ == "__main__":
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
     parser.add_argument("--hidden_layer", default=32, type=int, help="Size of the hidden layer.")
     parser.add_argument("--layers", default=4, type=int, help="Number of layers.")
-    parser.add_argument("--batch_size", default=128, type=int, help="Size of the batch.")
+    parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
-    parser.add_argument("--tf_preprocessor", default="NonePreprocessor", type=str, help="Name of the track features preprocessor to use.")
+    parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
     args = parser.parse_args()
 
     model = TrackFeaturesDenseNetwork(args.hidden_layer, args.layers, args.batch_size)
     predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
-    maa = predictor.evaluate_on_files(args.test_folder, args.tf_folder)
+    maa = predictor.evaluate(args.test_folder, args.tf_folder)
     print(str(args))
     print("Track features dense network model achieved " + str(maa) + " mean average accuracy")
     print("------------------------------------")

@@ -25,5 +25,5 @@ if __name__ == "__main__":
 
     model = LastSkipModel()
     predictor = Predictor(model)
-    maa = predictor.evaluate_on_files(args.test_folder, args.tf_folder)
+    maa = predictor.evaluate(args.test_folder, args.tf_folder)
     print("Last user skip model achieved " + str(maa) + " mean average accuracy")
