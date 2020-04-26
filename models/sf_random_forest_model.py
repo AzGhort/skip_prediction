@@ -69,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--estimators", default=8, type=int, help="Number of estimators for one set of random forest")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes to train")
     parser.add_argument("--window", default=5, type=int, help="Number of tracks previous to the track predicted the model sees")
+    parser.add_argument("--sf_preprocessor", default="NonePreprocessor", type=str, help="Name of the session features preprocessor to use.")
     args = parser.parse_args()
 
     model = SessionFeaturesRandomForestModel(args.estimators, args.window)

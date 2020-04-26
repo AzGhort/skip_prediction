@@ -23,6 +23,8 @@ class Predictor:
                 print("Dataset created succesfully.")
                 print("Training on dataset starts.")
                 self.model.train(train_set)
+                print("Training on dataset ends.")
+                print("Evaluating on dev set.")
                 dev_accs.append(self.model.evaluate(dev_set))
             print("Evaluating after " + str(e) + " episodes:" + str(np.mean(dev_accs)) + " mean average accuracy")
 

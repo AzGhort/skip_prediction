@@ -34,4 +34,5 @@ class Model:
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         raise NotImplementedError()
 
-
+    def save_model(self, file):
+        raise NotImplementedError()

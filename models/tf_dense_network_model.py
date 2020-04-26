@@ -37,14 +37,19 @@ class TrackFeaturesDenseNetwork(Model):
             y = np.array(skips)
             loss, metric = self.network.train_on_batch(x, y)
             if batch_index % self.verbose_each == 0:
-                print("---- loss of batch number " + str(batch_index) + " batches: " + str(loss))
-                print("---- binary accuracy of batch number " + str(batch_index) + " batches: " + str(metric))
+                print("--- loss of batch number " + str(batch_index) + " batches: " + str(loss))
+                print("--- binary accuracy of batch number " + str(batch_index) + " batches: " + str(metric))
 
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         ret = []
         for tf in tf_second:
-            ret.append(np.around(self.network(tf))[0])
+            tf_reshaped = tf.reshape((1, SpotifyDataset.TRACK_FEATURES))
+            network_output = self.network(tf_reshaped).numpy().flatten()
+            ret.append(np.around(network_output[0]))
         return np.array(ret)
+
+    def save_model(self, file):
+        self.network.save_weights(file)
 
 
 if __name__ == "__main__":
@@ -54,19 +59,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "one_file_train_set", type=str, help="Name of the train log folder.")
     parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "one_file_test_set", type=str, help="Name of the test log folder.")
-    parser.add_argument("--tf_folder", default="." + os.sep + "tf", type=str, help="Name of track features folder")
+    parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
     parser.add_argument("--hidden_layer", default=32, type=int, help="Size of the hidden layer.")
     parser.add_argument("--layers", default=4, type=int, help="Number of layers.")
     parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
+    parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
     args = parser.parse_args()
+
+    np.random.seed(args.seed)
+    tf.random.set_seed(args.seed)
 
     model = TrackFeaturesDenseNetwork(args.hidden_layer, args.layers, args.batch_size)
     predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
     maa = predictor.evaluate(args.test_folder, args.tf_folder)
+
+    model.save_model(args.result_dir + os.sep + "tf_dense")
+
     print(str(args))
     print("Track features dense network model achieved " + str(maa) + " mean average accuracy")
     print("------------------------------------")

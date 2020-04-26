@@ -197,26 +197,36 @@ class EncoderDecoderSF(Model):
             predictions.append(np.around(network_output[0][i][2]))
         return predictions
 
+    def save_model(self, file):
+        self.network.save_weights(file)
+
 
 if __name__ == "__main__":
     import argparse
     from predictor import Predictor
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "one_file_train_set", type=str, help="Name of the train log folder.")
-    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "one_file_test_set", type=str, help="Name of the test log folder.")
-    parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
+    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "mini_train_set", type=str, help="Name of the train log folder.")
+    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
+    parser.add_argument("--tf_folder", default="." + os.sep + "tf", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
     parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
     parser.add_argument("--sf_preprocessor", default="NonePreprocessor", type=str, help="Name of the session features preprocessor to use.")
+    parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
     args = parser.parse_args()
+
+    np.random.seed(args.seed)
+    tf.random.set_seed(args.seed)
 
     model = EncoderDecoderSF(args.batch_size)
     predictor = Predictor(model, args.tf_preprocessor, args.sf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
     maa = predictor.evaluate(args.test_folder, args.tf_folder)
+
+    model.save_model(args.result_dir + os.sep + "encoder_decoder_sf")
+
     print(str(args))
     print("Encoder-decoder session features prediction model achieved " + str(maa) + " mean average accuracy")
     print("------------------------------------")

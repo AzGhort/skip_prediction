@@ -62,7 +62,7 @@ class SpotifyDataset:
         fraction = int(length * percents / 100.0)
         return data[:fraction], data[fraction:]
 
-    def get_dataset(self, split_to_train_dev=True, percents=80):
+    def get_dataset(self, split_to_train_dev=True, percents=95):
         for filename in os.listdir(self.log_folder):
             print("Getting dataset from session metadata file " + filename)
             if filename.endswith('.csv'):
