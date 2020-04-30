@@ -15,6 +15,7 @@ class LastSkipModel(Model):
     def save_model(self, file):
         pass
 
+
 if __name__ == "__main__":
     import argparse
     from predictor import Predictor
@@ -27,5 +28,6 @@ if __name__ == "__main__":
 
     model = LastSkipModel()
     predictor = Predictor(model)
-    maa = predictor.evaluate(args.test_folder, args.tf_folder)
+    maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
     print("Last user skip model achieved " + str(maa) + " mean average accuracy")
+    print("Last user skip model achieved " + str(fpa) + " first prediction accuracy")

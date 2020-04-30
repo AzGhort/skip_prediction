@@ -30,7 +30,7 @@ print(stats['third_quartile'])
 print(stats['min'])
 print(stats['max'])
 
-with open("feature_stats.py", 'w') as target_file:
+with open("track_feature_stats.py", 'w') as target_file:
     target_file.writelines(["import numpy as np", os.linesep])
     target_file.writelines(["Stats = {", os.linesep])
     target_file.writelines(["'std': np.array(" + str(stats['std']) + "),", os.linesep])

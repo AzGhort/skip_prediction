@@ -4,7 +4,6 @@ import os
 from dataset_description import *
 from preprocessing.min_max_scaler import MinMaxScaler
 from preprocessing.none_preprocessor import NonePreprocessor
-from preprocessing.normalizer import Normalizer
 from preprocessing.standard_scaler import StandardScaler
 
 
@@ -38,8 +37,6 @@ class TrackFeatureParser:
     def get_preprocessor(name):
         if name == "StandardScaler":
             return StandardScaler()
-        elif name == "Normalizer":
-            return Normalizer()
         elif name == "MinMaxScaler":
             return MinMaxScaler()
         else:

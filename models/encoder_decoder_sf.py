@@ -4,25 +4,26 @@ from models.model import Model
 from dataset_description import *
 from spotify_dataset import SpotifyDataset
 import os
+from prediction_importances import *
 
 
 # encoder-decoder architecture, predicting the whole session features
 class EncoderDecoderSF(Model):
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, weighted_loss=False):
         # SESSION REPRESENTATION
         # ---------------------------------------------------------------------------
         # session features
         sf_input = tf.keras.layers.Input(shape=(10, SpotifyDataset.SESSION_FEATURES), dtype=tf.float32, name="SF_Input")
         # sf_flatten = tf.keras.layers.Flatten(name="SF_Flatten")(sf_input)
         # sf_embed = tf.keras.layers.Embedding(2048, 32, name="SF_Embedding", mask_zero=True)(sf_flatten)
-        sf_batch_norm = tf.keras.layers.BatchNormalization(name="SF_BatchNorm")(sf_input)
+        sf_batch_norm = tf.keras.layers.BatchNormalization(name="SF_BatchNorm", autocast=False)(sf_input)
         sf_transformer = tf.keras.layers.Dense(64, activation=tf.nn.relu, name="SF_Transformer")(sf_batch_norm)
 
         # track features
         # use same embedding for first and second half track features
         # tf_flatten = tf.keras.layers.Flatten(name="TF_Flatten")
         # tf_embed = tf.keras.layers.Embedding(2048, 32, name="TF_Embedding", mask_zero=True)
-        tf_batch_norm = tf.keras.layers.BatchNormalization(name="TF_BatchNorm")
+        tf_batch_norm = tf.keras.layers.BatchNormalization(name="TF_BatchNorm", autocast=False)
         tf_transformer = tf.keras.layers.Dense(64, activation=tf.nn.relu, name="TF_Transformer")
 
         # first half tf
@@ -135,10 +136,15 @@ class EncoderDecoderSF(Model):
         self.batch_size = batch_size
         self.verbose_each = 10
 
+        self.use_weighted_loss = weighted_loss
+        self.mse_loss = tf.keras.losses.MeanSquaredError()
+        self.optimizer = tf.keras.optimizers.Adam()
+        self.metric = tf.keras.metrics.BinaryCrossentropy(from_logits=False)
+
         self.network.compile(
-            optimizer=tf.keras.optimizers.Adam(),
-            loss=tf.keras.losses.MeanSquaredError(),
-            metrics=[tf.keras.metrics.Accuracy()]
+            optimizer=self.optimizer,
+            loss=self.mse_loss,
+            metrics=[self.metric]
         )
         #os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
         #tf.keras.utils.plot_model(self.network, to_file='encoder_decoder_session_features_prediction.png')
@@ -166,11 +172,11 @@ class EncoderDecoderSF(Model):
         for batch in set.batches(self.batch_size):
             current_batch_size = min(self.batch_size, batch[DatasetDescription.SF_FIRST_HALF].shape[0])
             batch_index += 1
-            sfs_first_half = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES))
-            tfs_first_half = np.zeros((current_batch_size, 10, SpotifyDataset.TRACK_FEATURES))
-            tfs_second_half = np.zeros((current_batch_size, 10, SpotifyDataset.TRACK_FEATURES))
-            sfs_second_half = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES))
-            last_sfs_first_half = np.zeros((current_batch_size, 1, SpotifyDataset.SESSION_FEATURES))
+            sfs_first_half = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES), dtype=np.float32)
+            tfs_first_half = np.zeros((current_batch_size, 10, SpotifyDataset.TRACK_FEATURES), dtype=np.float32)
+            tfs_second_half = np.zeros((current_batch_size, 10, SpotifyDataset.TRACK_FEATURES), dtype=np.float32)
+            sfs_second_half = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES), dtype=np.float32)
+            last_sfs_first_half = np.zeros((current_batch_size, 1, SpotifyDataset.SESSION_FEATURES), dtype=np.float32)
 
             for i in range(current_batch_size):
                 last_sfs_first_half[i] = self._get_last_session_features(batch[DatasetDescription.SF_FIRST_HALF][i])
@@ -179,10 +185,31 @@ class EncoderDecoderSF(Model):
                 tfs_first_half[i] = self._pad_input(batch[DatasetDescription.TF_FIRST_HALF][i])
                 tfs_second_half[i] = self._pad_input(batch[DatasetDescription.TF_SECOND_HALF][i])
 
-            loss, metric = self.network.train_on_batch([sfs_first_half, tfs_first_half, tfs_second_half, last_sfs_first_half], sfs_second_half)
+            loss, metric = self.train_on_batch([sfs_first_half, tfs_first_half, tfs_second_half, last_sfs_first_half], sfs_second_half)
             if batch_index % self.verbose_each == 0:
                 print("--- loss of batch number " + str(batch_index) + ": " + str(loss))
                 print("--- metric of batch number " + str(batch_index) + ": " + str(metric))
+
+    def train_on_batch(self, inputs, targets):
+        current_batch_size = inputs.shape[0]
+        with tf.GradientTape() as tape:
+            predicted = self.network(inputs)
+            if self.use_weighted_loss:
+                pos_weights = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES), dtype=np.float32)
+                for i in range(current_batch_size):
+                    pos_weights[i] = Importances
+                loss = tf.nn.weighted_cross_entropy_with_logits(targets, predicted, pos_weights)
+            else:
+                loss = self.mse_loss(targets, predicted)
+
+        self.metric.reset_states()
+        self.metric.update_state(targets, predicted)
+        metric = self.metric.result()
+
+        gradients = tape.gradient(loss, self.network.variables)
+        self.optimizer.apply_gradients(zip(gradients, self.network.variables))
+
+        return loss, metric
 
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         second_half_real_length = sf_second.shape[0]
@@ -206,8 +233,8 @@ if __name__ == "__main__":
     from predictor import Predictor
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "mini_train_set", type=str, help="Name of the train log folder.")
-    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
+    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "one_file_train_set", type=str, help="Name of the train log folder.")
+    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "one_file_test_set", type=str, help="Name of the test log folder.")
     parser.add_argument("--tf_folder", default="." + os.sep + "tf", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
     parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
@@ -215,18 +242,21 @@ if __name__ == "__main__":
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
     parser.add_argument("--sf_preprocessor", default="NonePreprocessor", type=str, help="Name of the session features preprocessor to use.")
     parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
+    parser.add_argument("--model_name", default="encoder_decoder_sf", type=str, help="Name of the model to save.")
+    parser.add_argument("--weighted_loss", default=True, type=bool, help="Whether to use weighted loss for training.")
     args = parser.parse_args()
 
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
 
-    model = EncoderDecoderSF(args.batch_size)
+    model = EncoderDecoderSF(args.batch_size, args.weighted_loss)
     predictor = Predictor(model, args.tf_preprocessor, args.sf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
-    maa = predictor.evaluate(args.test_folder, args.tf_folder)
+    maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 
-    model.save_model(args.result_dir + os.sep + "encoder_decoder_sf")
+    model.save_model(args.result_dir + os.sep + args.model_name)
 
     print(str(args))
     print("Encoder-decoder session features prediction model achieved " + str(maa) + " mean average accuracy")
+    print("Encoder-decoder session features prediction model achieved " + str(fpa) + " first prediction accuracy")
     print("------------------------------------")

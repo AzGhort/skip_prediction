@@ -29,7 +29,8 @@ class Predictor:
             print("Evaluating after " + str(e) + " episodes:" + str(np.mean(dev_accs)) + " mean average accuracy")
 
     def evaluate(self, folder, tf_folder):
-        accs = []
+        aas = []
+        fas = []
         print("EVALUATING")
         if folder is None:
             return "No test folder"
@@ -37,8 +38,10 @@ class Predictor:
         spotify = SpotifyDataset(folder, tf_folder, self.tf_preprocessor_name)
         for test_set in spotify.get_dataset(False):
             print("Dataset created succesfully.")
-            acc = self.model.evaluate(test_set)
-            print("current mean average accuracy is: " + str(acc))
-            accs.append(acc)
-        mean_average_accuracy = np.mean(accs)
-        return mean_average_accuracy
+            aa, fpa = self.model.evaluate(test_set)
+            print("current mean average accuracy is: " + str(aa))
+            aas.append(aa)
+            fas.append(fpa)
+        mean_average_accuracy = np.mean(aas)
+        first_prediction_accuracy = np.mean(fas)
+        return mean_average_accuracy, first_prediction_accuracy
