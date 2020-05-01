@@ -8,6 +8,7 @@ class SpotifyDataset:
     SKIP = 1
     TRACK_FEATURES = 29
     SESSION_FEATURES = 18
+    SESSION_PREDICTABLE_FEATURES = 16
 
     class Dataset:
         def __init__(self, data, shuffle_batches, seed=42):

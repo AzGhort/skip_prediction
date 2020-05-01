@@ -21,27 +21,50 @@ class Model:
         return np.mean(average_accuracies), np.mean(first_prediction_accuracies)
 
     @staticmethod
-    def average_accuracy(prediction, target):
-        prediction = np.array(prediction)
-        t = len(prediction)
-        prediction.shape = (t, 1)
-        aa = 0
-        correct = 0
-        for i in range(t):
-            if prediction[i] == target[i][0]:
-                correct += 1
-                aa += (correct * 1.0 / (i + 1))
-        return aa * 1.0 / t
+    def average_accuracy(predictions, targets):
+        aas = []
+
+        if len(targets.shape) == 2:
+            targets = targets.reshape((1, targets.shape[0], targets.shape[1]))
+        assert len(targets.shape) == 3
+
+        if predictions.shape != targets.shape:
+            predictions = predictions.reshape(targets.shape)
+        assert predictions.shape == targets.shape
+
+        targets_length = targets.shape[0]
+        # for each batch
+        for i in range(targets_length):
+            aa = 0
+            correct = 0
+            t = targets[i].shape[0]
+            # for each session
+            for j in range(t):
+                if predictions[i][j][0] == targets[i][j][0]:
+                    correct += 1
+                    aa += (correct * 1.0 / (j + 1))
+            aas.append(aa * 1.0 / t)
+        return np.mean(aas)
 
     @staticmethod
-    def first_prediction_accuracy(prediction, target):
-        if prediction[0] == target[0][0]:
-            return 1
-        else:
-            return 0
+    def first_prediction_accuracy(predictions, targets):
+        fpas = []
+
+        if len(targets.shape) == 2:
+            targets = targets.reshape((1, targets.shape[0], targets.shape[1]))
+        assert len(targets.shape) == 3
+
+        if predictions.shape != targets.shape:
+            predictions = predictions.reshape(targets.shape)
+        assert predictions.shape == targets.shape
+
+        targets_length = targets.shape[0]
+        for i in range(targets_length):
+            if predictions[i][0][0] == targets[i][0][0]:
+                fpas.append(1.0)
+            else:
+                fpas.append(0.0)
+        return np.mean(fpas)
 
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
-        raise NotImplementedError()
-
-    def save_model(self, file):
         raise NotImplementedError()

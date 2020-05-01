@@ -3,6 +3,7 @@ import numpy as np
 import csv
 from track_feature_parser import TrackFeatureParser
 from dataset_description import *
+from preprocessing.session_feature_stats import *
 
 
 class DataParser:
@@ -71,11 +72,14 @@ class DataParser:
             row[SessionFeaturesFields.SKIP_2] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_2])
             row[SessionFeaturesFields.SKIP_3] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_3])
             row[SessionFeaturesFields.NOT_SKIPPED] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.NOT_SKIPPED])
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD] = float(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD]
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK] = float(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK]
             row[SessionFeaturesFields.HIST_USER_BEHAVIOR_IS_SHUFFLE] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_IS_SHUFFLE])
             row[SessionFeaturesFields.PREMIUM] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.PREMIUM])
-            row[SessionFeaturesFields.CONTEXT_TYPE] = DataParser.get_spotify_context_type_from_string(row[SessionFeaturesFields.CONTEXT_TYPE])
-            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START] = DataParser.get_reason_track_start_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START])
-            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END] = DataParser.get_reason_track_end_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END])
+            row[SessionFeaturesFields.CONTEXT_TYPE] = DataParser.get_spotify_context_type_from_string(row[SessionFeaturesFields.CONTEXT_TYPE]) / Maximums[SessionFeaturesFields.CONTEXT_TYPE]
+            row[SessionFeaturesFields.HOUR_OF_DAY] = float(row[SessionFeaturesFields.HOUR_OF_DAY]) / Maximums[SessionFeaturesFields.HOUR_OF_DAY]
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START] = DataParser.get_reason_track_start_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START]
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END] = DataParser.get_reason_track_end_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END]
             ls = list(row.values())
             out.append(ls)
         return np.array(out, np.float32)

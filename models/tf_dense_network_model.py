@@ -1,13 +1,16 @@
 import tensorflow as tf
 import numpy as np
-from models.model import Model
+from models.network_model import NetworkModel
 from dataset_description import *
 from spotify_dataset import SpotifyDataset
 import os
 
 
-class TrackFeaturesDenseNetwork(Model):
-    def __init__(self, hidden_layer_size, hidden_layers_count, batch_size):
+class TrackFeaturesDenseNetwork(NetworkModel):
+    def call_on_batch(self, batch_input):
+        raise NotImplementedError()
+
+    def __init__(self, hidden_layer_size, hidden_layers_count, batch_size, verbose_each=10):
         layers = [tf.keras.layers.InputLayer(SpotifyDataset.TRACK_FEATURES)]
         layers.append(tf.keras.layers.Dense(64, activation=tf.nn.relu))
         layers.append(tf.keras.layers.Dense(64, activation=tf.nn.relu))
@@ -18,8 +21,8 @@ class TrackFeaturesDenseNetwork(Model):
         #    layers.append(tf.keras.layers.Dense(hidden_layer_size, activation=tf.nn.relu))
         layers.append(tf.keras.layers.Dense(1, activation=tf.nn.sigmoid))
         self.network = tf.keras.Sequential(layers)
-        self.batch_size = batch_size
-        self.verbose_each = 10
+
+        super().__init__(batch_size, verbose_each)
 
         self.network.compile(
             optimizer=tf.keras.optimizers.Adam(),
@@ -27,23 +30,33 @@ class TrackFeaturesDenseNetwork(Model):
             metrics=[tf.keras.metrics.BinaryAccuracy()],
         )
 
-    def train(self, set):
-        batch_index = 0
-        for batch in set.batches(self.batch_size):
-            batch_index += 1
-            tfs = []
-            skips = []
-            for j in range(len(batch[DatasetDescription.SF_FIRST_HALF])):
-                tf_second, session_skip = batch[DatasetDescription.TF_SECOND_HALF][j], batch[DatasetDescription.SKIPS][j].ravel()
-                for i in range(len(session_skip)):
-                    tfs.append([tf_second[i]])
-                    skips.append([session_skip[i]])
-            x = np.concatenate(tfs)
-            y = np.array(skips)
-            loss, metric = self.network.train_on_batch(x, y)
-            if batch_index % self.verbose_each == 0:
-                print("--- loss of batch number " + str(batch_index) + " batches: " + str(loss))
-                print("--- binary accuracy of batch number " + str(batch_index) + " batches: " + str(metric))
+    def prepare_batch(self, batch):
+        tfs = []
+        skips = []
+        for j in range(len(batch[DatasetDescription.SF_FIRST_HALF])):
+            tf_second, session_skip = batch[DatasetDescription.TF_SECOND_HALF][j], batch[DatasetDescription.SKIPS][j].ravel()
+            for i in range(len(session_skip)):
+                tfs.append([tf_second[i]])
+                skips.append([session_skip[i]])
+        return np.concatenate(tfs), np.array(skips)
+
+    # cant evaluate in batches correctly, as the network flatten inputs from sessions
+    def evaluate(self, set):
+        average_accuracies = []
+        first_prediction_accuracies = []
+        for i in range(len(set.data[DatasetDescription.SF_FIRST_HALF])):
+            sf_first = set.data[DatasetDescription.SF_FIRST_HALF][i]
+            sf_second = set.data[DatasetDescription.SF_SECOND_HALF][i]
+            tf_first = set.data[DatasetDescription.TF_FIRST_HALF][i]
+            tf_second = set.data[DatasetDescription.TF_SECOND_HALF][i]
+            skips = set.data[DatasetDescription.SKIPS][i]
+            prediction = self(sf_first, sf_second, tf_first, tf_second)
+            average_accuracies.append(self.average_accuracy(prediction, skips))
+            first_prediction_accuracies.append(self.first_prediction_accuracy(prediction, skips))
+        return np.mean(average_accuracies), np.mean(first_prediction_accuracies)
+
+    def train_on_batch(self, x, y):
+        return self.network.train_on_batch(x, y)
 
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         ret = []
@@ -62,9 +75,9 @@ if __name__ == "__main__":
     from predictor import Predictor
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "one_file_train_set", type=str, help="Name of the train log folder.")
-    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "one_file_test_set", type=str, help="Name of the test log folder.")
-    parser.add_argument("--tf_folder", default="." + os.sep + "tf", type=str, help="Name of track features folder")
+    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "example_set", type=str, help="Name of the train log folder.")
+    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "example_set", type=str, help="Name of the test log folder.")
+    parser.add_argument("--tf_folder", default=".." + os.sep + "tf_mini", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
     parser.add_argument("--hidden_layer", default=64, type=int, help="Size of the hidden layer.")
     parser.add_argument("--layers", default=4, type=int, help="Number of layers.")

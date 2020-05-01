@@ -18,15 +18,19 @@ class Predictor:
         spotify = SpotifyDataset(train_folder, tf_folder, self.tf_preprocessor_name)
         for e in range(episodes):
             print("Episode " + str(e) + " starts.")
-            dev_accs = []
+            dev_aas = []
+            dev_fpas = []
             for train_set, dev_set in spotify.get_dataset():
                 print("Dataset created succesfully.")
                 print("Training on dataset starts.")
                 self.model.train(train_set)
                 print("Training on dataset ends.")
                 print("Evaluating on dev set.")
-                dev_accs.append(self.model.evaluate(dev_set))
-            print("Evaluating after " + str(e) + " episodes:" + str(np.mean(dev_accs)) + " mean average accuracy")
+                maa, fpa = self.model.evaluate(dev_set)
+                dev_aas.append(maa)
+                dev_fpas.append(fpa)
+            print("Evaluating after " + str(e) + " episodes: " + str(np.mean(dev_aas)) + " mean average accuracy")
+            print("Evaluating after " + str(e) + " episodes: " + str(np.mean(dev_fpas)) + " first prediction accuracy")
 
     def evaluate(self, folder, tf_folder):
         aas = []
@@ -39,7 +43,6 @@ class Predictor:
         for test_set in spotify.get_dataset(False):
             print("Dataset created succesfully.")
             aa, fpa = self.model.evaluate(test_set)
-            print("current mean average accuracy is: " + str(aa))
             aas.append(aa)
             fas.append(fpa)
         mean_average_accuracy = np.mean(aas)

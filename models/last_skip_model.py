@@ -12,9 +12,6 @@ class LastSkipModel(Model):
         # skip 2 of the last song in the first half
         return np.repeat(sf_first[-1][3], len(sf_second))
 
-    def save_model(self, file):
-        pass
-
 
 if __name__ == "__main__":
     import argparse
