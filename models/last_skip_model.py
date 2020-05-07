@@ -18,9 +18,9 @@ if __name__ == "__main__":
     from predictor import Predictor
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_folder", default=".." + os.sep + "training_set_mini", type=str, help="Name of the train log folder.")
-    parser.add_argument("--test_folder", default=".." + os.sep + "training_set", type=str, help="Name of the test log folder.")
-    parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
+    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "example_set", type=str, help="Name of the train log folder.")
+    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "example_set", type=str, help="Name of the test log folder.")
+    parser.add_argument("--tf_folder", default=".." + os.sep + "tf_mini", type=str, help="Name of track features folder")
     args = parser.parse_args()
 
     model = LastSkipModel()

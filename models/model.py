@@ -16,6 +16,11 @@ class Model:
             tf_second = set.data[DatasetDescription.TF_SECOND_HALF][i]
             skips = set.data[DatasetDescription.SKIPS][i]
             prediction = self(sf_first, sf_second, tf_first, tf_second)
+
+            prediction_len = prediction.shape[0]
+            prediction = prediction.reshape((1, prediction_len, 1))
+            skips = skips.reshape((1, prediction_len, 1))
+
             average_accuracies.append(self.average_accuracy(prediction, skips))
             first_prediction_accuracies.append(self.first_prediction_accuracy(prediction, skips))
         return np.mean(average_accuracies), np.mean(first_prediction_accuracies)
@@ -23,22 +28,13 @@ class Model:
     @staticmethod
     def average_accuracy(predictions, targets):
         aas = []
-
-        if len(targets.shape) == 2:
-            targets = targets.reshape((1, targets.shape[0], targets.shape[1]))
-        assert len(targets.shape) == 3
-
-        if predictions.shape != targets.shape:
-            predictions = predictions.reshape(targets.shape)
-        assert predictions.shape == targets.shape
-
         targets_length = targets.shape[0]
-        # for each batch
+        # for each session
         for i in range(targets_length):
             aa = 0
             correct = 0
             t = targets[i].shape[0]
-            # for each session
+            # for each track
             for j in range(t):
                 if predictions[i][j][0] == targets[i][j][0]:
                     correct += 1
@@ -49,16 +45,8 @@ class Model:
     @staticmethod
     def first_prediction_accuracy(predictions, targets):
         fpas = []
-
-        if len(targets.shape) == 2:
-            targets = targets.reshape((1, targets.shape[0], targets.shape[1]))
-        assert len(targets.shape) == 3
-
-        if predictions.shape != targets.shape:
-            predictions = predictions.reshape(targets.shape)
-        assert predictions.shape == targets.shape
-
         targets_length = targets.shape[0]
+        # for each session
         for i in range(targets_length):
             if predictions[i][0][0] == targets[i][0][0]:
                 fpas.append(1.0)

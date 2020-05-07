@@ -1,5 +1,6 @@
 from dataset_description import *
 from enums import *
+import numpy as np
 
 
 Maximums = {
@@ -9,6 +10,11 @@ Maximums = {
     SessionFeaturesFields.HOUR_OF_DAY: 23.0,
     SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD: 51458.0,
     SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK: 88162.0
+}
+
+LogMaximums = {
+    SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD: np.log(51458.0),
+    SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK: np.log(88162.0)
 }
 
 

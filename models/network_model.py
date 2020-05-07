@@ -8,21 +8,6 @@ class NetworkModel(Model):
         self.batch_size = batch_size
         self.verbose_each = verbose_each
 
-    def prepare_batch(self, batch):
-        raise NotImplementedError()
-
-    def call_on_batch(self, batch_input):
-        raise NotImplementedError()
-
-    def __call__(self, sf_first, sf_second, tf_first, tf_second):
-        raise NotImplementedError()
-
-    def save_model(self, file):
-        raise NotImplementedError()
-
-    def train_on_batch(self, x, y):
-        raise NotImplementedError()
-
     def train(self, set):
         batch_index = 0
         for batch in set.batches(self.batch_size):
@@ -30,8 +15,8 @@ class NetworkModel(Model):
             x, y = self.prepare_batch(batch)
             loss, metric = self.train_on_batch(x, y)
             if batch_index % self.verbose_each == 0:
-                print("--- loss of batch number " + str(batch_index) + ": " + str(loss))
-                print("--- metric of batch number " + str(batch_index) + ": " + str(metric))
+                print("[Network model]: --- loss of batch number " + str(batch_index) + ": " + str(loss))
+                print("[Network model]: --- metric of batch number " + str(batch_index) + ": " + str(metric))
 
     def evaluate(self, set):
         average_accuracies = []

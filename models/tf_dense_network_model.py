@@ -1,9 +1,9 @@
+import os
 import tensorflow as tf
 import numpy as np
 from models.network_model import NetworkModel
 from dataset_description import *
 from spotify_dataset import SpotifyDataset
-import os
 
 
 class TrackFeaturesDenseNetwork(NetworkModel):
@@ -51,6 +51,11 @@ class TrackFeaturesDenseNetwork(NetworkModel):
             tf_second = set.data[DatasetDescription.TF_SECOND_HALF][i]
             skips = set.data[DatasetDescription.SKIPS][i]
             prediction = self(sf_first, sf_second, tf_first, tf_second)
+
+            prediction_len = prediction.shape[0]
+            prediction = prediction.reshape((1, prediction_len, 1))
+            skips = skips.reshape((1, prediction_len, 1))
+
             average_accuracies.append(self.average_accuracy(prediction, skips))
             first_prediction_accuracies.append(self.first_prediction_accuracy(prediction, skips))
         return np.mean(average_accuracies), np.mean(first_prediction_accuracies)

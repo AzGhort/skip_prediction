@@ -1,8 +1,6 @@
 import enums
-import numpy as np
 import csv
 from track_feature_parser import TrackFeatureParser
-from dataset_description import *
 from preprocessing.session_feature_stats import *
 
 
@@ -68,18 +66,18 @@ class DataParser:
             del row[SessionFeaturesFields.SESSION_ID]
             del row[SessionFeaturesFields.TRACK_ID_CLEAN]
             del row[SessionFeaturesFields.DATE]
-            row[SessionFeaturesFields.SKIP_1] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_1])
-            row[SessionFeaturesFields.SKIP_2] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_2])
-            row[SessionFeaturesFields.SKIP_3] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_3])
-            row[SessionFeaturesFields.NOT_SKIPPED] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.NOT_SKIPPED])
-            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD] = float(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD]
-            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK] = float(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK]
-            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_IS_SHUFFLE] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_IS_SHUFFLE])
-            row[SessionFeaturesFields.PREMIUM] = DataParser.get_numeric_bool_from_string(row[SessionFeaturesFields.PREMIUM])
-            row[SessionFeaturesFields.CONTEXT_TYPE] = DataParser.get_spotify_context_type_from_string(row[SessionFeaturesFields.CONTEXT_TYPE]) / Maximums[SessionFeaturesFields.CONTEXT_TYPE]
+            row[SessionFeaturesFields.SKIP_1] = self.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_1])
+            row[SessionFeaturesFields.SKIP_2] = self.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_2])
+            row[SessionFeaturesFields.SKIP_3] = self.get_numeric_bool_from_string(row[SessionFeaturesFields.SKIP_3])
+            row[SessionFeaturesFields.NOT_SKIPPED] = self.get_numeric_bool_from_string(row[SessionFeaturesFields.NOT_SKIPPED])
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD] = self.transform_hist_user_n_seekfwd(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD])
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK] = self.transform_hist_user_n_seekback(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK])
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_IS_SHUFFLE] = self.get_numeric_bool_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_IS_SHUFFLE])
+            row[SessionFeaturesFields.PREMIUM] = self.get_numeric_bool_from_string(row[SessionFeaturesFields.PREMIUM])
+            row[SessionFeaturesFields.CONTEXT_TYPE] = self.get_spotify_context_type_from_string(row[SessionFeaturesFields.CONTEXT_TYPE]) / Maximums[SessionFeaturesFields.CONTEXT_TYPE]
             row[SessionFeaturesFields.HOUR_OF_DAY] = float(row[SessionFeaturesFields.HOUR_OF_DAY]) / Maximums[SessionFeaturesFields.HOUR_OF_DAY]
-            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START] = DataParser.get_reason_track_start_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START]
-            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END] = DataParser.get_reason_track_end_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END]
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START] = self.get_reason_track_start_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_START]
+            row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END] = self.get_reason_track_end_from_string(row[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END]) / Maximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_REASON_END]
             ls = list(row.values())
             out.append(ls)
         return np.array(out, np.float32)
@@ -103,6 +101,14 @@ class DataParser:
             tracks[row[SessionFeaturesFields.TRACK_ID_CLEAN]] = track_data
         else:
             tracks[row[SessionFeaturesFields.TRACK_ID_CLEAN]] += track_data
+
+    @staticmethod
+    def transform_hist_user_n_seekfwd(string):
+        return np.log(float(string) + 1) / LogMaximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD]
+
+    @staticmethod
+    def transform_hist_user_n_seekback(string):
+        return np.log(float(string) + 1) / LogMaximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK]
 
     @staticmethod
     def get_numeric_bool_from_string(string):
