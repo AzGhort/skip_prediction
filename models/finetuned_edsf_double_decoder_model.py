@@ -4,11 +4,12 @@ import os
 import numpy as np
 from spotify_dataset import *
 import logging
+from prediction_importances import *
 
 
 class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
-    def __init__(self, batch_size, verbose_each, saved_model_file):
-        super(FinetunedEDSFDoubleDecoderModel, self).__init__(batch_size, verbose_each, saved_model_file)
+    def __init__(self, batch_size, verbose_each, saved_model_file, weighted_loss, trainable_decoder):
+        super(FinetunedEDSFDoubleDecoderModel, self).__init__(batch_size, verbose_each, saved_model_file, trainable_decoder)
         first_half_sf_predicted = self.pretrained_model.output
 
         decoders = [
@@ -40,11 +41,13 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
         self.network.compile(
             optimizer=tf.optimizers.Adam(),
             loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+            sample_weight_mode='temporal' if weighted_loss else None,
             metrics=[tf.keras.metrics.BinaryAccuracy()]
         )
 
-        os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
-        tf.keras.utils.plot_model(self.network, to_file='finetuned_edsf_double_decoder.png')
+        self.weighted_loss = weighted_loss
+        #os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
+        #tf.keras.utils.plot_model(self.network, to_file='finetuned_edsf_double_decoder.png')
 
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         second_half_real_length = sf_second.shape[0]
@@ -52,7 +55,7 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
         sf_first = self._pad_input(sf_first).reshape((1, 10, SpotifyDataset.SESSION_FEATURES))
         tf_first = self._pad_input(tf_first).reshape((1, 10, SpotifyDataset.TRACK_FEATURES))
         tf_second = self._pad_input(tf_second).reshape((1, 10, SpotifyDataset.TRACK_FEATURES))
-        network_output = self.network([sf_first, tf_first, tf_second, last_sf_first_half]).numpy()
+        network_output = self.network([sf_first, tf_first, tf_second, last_sf_first_half])
         predictions = []
         assert network_output.shape == (1, 10, 1)
         for i in range(second_half_real_length):
@@ -67,9 +70,9 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
     def _pad_input(features):
         return np.pad(features, [(0, 10 - features.shape[0]), (0, 0)])
 
-    @staticmethod
-    def _pad_targets(skips):
-        return np.pad(skips, [(0, 10 - skips.shape[0]), (0, 0)])
+    def _pad_targets(self, skips):
+        constant = -1 if self.weighted_loss else 0
+        return np.pad(skips, [(0, 10 - skips.shape[0]), (0, 0)], constant_values=constant)
 
     @staticmethod
     def _get_last_session_features(sf_first_half):
@@ -78,11 +81,25 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
 
     def call_on_batch(self, batch_input):
         batch_len = batch_input[0].shape[0]
-        network_output = self.network.predict_on_batch(batch_input).numpy()
+        network_output = self.network.predict_on_batch(batch_input)
         return np.around(network_output[:, :]).reshape((batch_len, 10, 1))
 
     def train_on_batch(self, inputs, targets):
-        return self.network.train_on_batch(inputs, targets)
+        if not self.weighted_loss:
+            return self.network.train_on_batch(inputs, targets)
+        else:
+            current_batch_size = min(self.batch_size, len(targets))
+            sample_weights = np.zeros((current_batch_size, 10), dtype=np.float32)
+            i = 0
+            for sample in targets:
+                j = 0
+                for skip in sample:
+                    if skip == -1:
+                        break
+                    sample_weights[i][j] = Importances[j]
+                    j += 1
+                i += 1
+            return self.network.train_on_batch(inputs, targets, sample_weight=sample_weights)
 
     def prepare_batch(self, batch):
         current_batch_size = min(self.batch_size, batch[DatasetDescription.SF_FIRST_HALF].shape[0])
@@ -99,7 +116,7 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
             tfs_first_half[i] = self._pad_input(batch[DatasetDescription.TF_FIRST_HALF][i])
             tfs_second_half[i] = self._pad_input(batch[DatasetDescription.TF_SECOND_HALF][i])
 
-        return [sfs_first_half, tfs_first_half, tfs_second_half, last_sfs_first_half, tfs_second_half], targets
+        return [sfs_first_half, tfs_first_half, tfs_second_half, last_sfs_first_half], targets
 
 
 if __name__ == "__main__":
@@ -110,14 +127,15 @@ if __name__ == "__main__":
     parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "small_train_set", type=str, help="Name of the train log folder.")
     parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
     parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
-    parser.add_argument("--episodes", default=5, type=int, help="Number of episodes.")
+    parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
     parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
-    parser.add_argument("--sf_preprocessor", default="NonePreprocessor", type=str, help="Name of the session features preprocessor to use.")
     parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
     parser.add_argument("--model_name", default="finetuned_edsf_double_decoder", type=str, help="Name of the model to save.")
     parser.add_argument("--saved_weights_folder", default=".." + os.sep + "saved_models" + os.sep + "edsf_5" + os.sep + "encoder_decoder_sf", type=str, help="Name of the folder of saved lengths.")
+    parser.add_argument("--weighted_loss", default=True, type=bool, help="Whether to use weighted loss.")
+    parser.add_argument("--trainable_decoder", default=True, type=bool, help="Whether the original decoder layers are trainable.")
     args = parser.parse_args()
 
     # no warnings
@@ -127,15 +145,16 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
 
-    model = FinetunedEDSFDoubleDecoderModel(args.batch_size, 10, args.saved_weights_folder)
+    model = FinetunedEDSFDoubleDecoderModel(args.batch_size, 100, args.saved_weights_folder, args.weighted_loss, args.trainable_decoder)
 
-    predictor = Predictor(model, args.tf_preprocessor, args.sf_preprocessor)
+    predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
-    maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
+
+    #maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 
     model.save_model(args.result_dir + os.sep + args.model_name)
 
     print(str(args))
-    print("Finetuned edsf double decoder prediction model achieved " + str(maa) + " mean average accuracy")
-    print("Finetuned edsf double decoder prediction model achieved " + str(fpa) + " first prediction accuracy")
+    #print("Finetuned edsf double decoder prediction model achieved " + str(maa) + " mean average accuracy")
+    #print("Finetuned edsf double decoder prediction model achieved " + str(fpa) + " first prediction accuracy")
     print("------------------------------------")

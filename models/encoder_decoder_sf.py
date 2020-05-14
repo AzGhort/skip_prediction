@@ -83,6 +83,8 @@ class EncoderDecoderSF(NetworkModel):
         backward_h = tf.keras.layers.Dropout(0.2, name="Backward_Hidden_Dropout")(backward_h)
         backward_c = tf.keras.layers.Dropout(0.2, name="Backward_Dropout")(backward_c)
 
+        self.encoder_out_states = [forward_h, forward_c, backward_h, backward_c]
+
         # DECODER
         # ---------------------------------------------------------------------------
         previous_predicted_input = tf.keras.layers.Input(shape=(1, SpotifyDataset.SESSION_PREDICTABLE_FEATURES),
@@ -99,14 +101,17 @@ class EncoderDecoderSF(NetworkModel):
         encoder_level_bidirs = []
 
         x = tf.keras.layers.Concatenate(name="DecoderInput_0")([
-            tf.keras.layers.RepeatVector(1, name="SecondHalf_SessionRepresentation_0")(session_representation),
-            tf.keras.layers.RepeatVector(1, name="SecondHalf_TF_0")(self._get_nth_lambda_layer(second_half_tf_transformer, 0))
+            tf.keras.layers.RepeatVector(1, name="DecoderSecondHalf_SessionRepresentation_0")(session_representation),
+            tf.keras.layers.RepeatVector(1, name="DecoderSecondHalf_TF_0")(self._get_nth_lambda_layer(second_half_tf_transformer, 0))
         ])
+
+        self.session_representation = session_representation
+        self.second_half_tf_transformer = second_half_tf_transformer
 
         x = base_transformer(x)
         x, forward_h, forward_c, backward_h, backward_c = decoders[0](x, initial_state=[forward_h, forward_c, backward_h, backward_c])
         encoder_level_bidirs.append(x)
-        x = tf.keras.layers.Concatenate(name="ConcatenatedTo_SF_-1")([
+        x = tf.keras.layers.Concatenate(name="DecoderConcatenatedTo_SF_-1")([
             x,
             previous_predicted_input
         ])
@@ -117,14 +122,14 @@ class EncoderDecoderSF(NetworkModel):
 
         for i in range(1, 10):
             x = tf.keras.layers.Concatenate(name="DecoderInput_" + str(i))([
-                tf.keras.layers.RepeatVector(1, name="SecondHalf_SessionRepresentation_" + str(i))(session_representation),
-                tf.keras.layers.RepeatVector(1, name="SecondHalf_TF_" + str(i))(self._get_nth_lambda_layer(second_half_tf_transformer, i))
+                tf.keras.layers.RepeatVector(1, name="DecoderSecondHalf_SessionRepresentation_" + str(i))(session_representation),
+                tf.keras.layers.RepeatVector(1, name="DecoderSecondHalf_TF_" + str(i))(self._get_nth_lambda_layer(second_half_tf_transformer, i))
             ])
 
             x = base_transformer(x)
             x, forward_h, forward_c, backward_h, backward_c = decoders[0](x, initial_state=[forward_h, forward_c, backward_h, backward_c])
             encoder_level_bidirs.append(x)
-            x = tf.keras.layers.Concatenate(name="ConcatenatedTo_SF_" + str(i-1))([
+            x = tf.keras.layers.Concatenate(name="DecoderConcatenatedTo_SF_" + str(i-1))([
                 x,
                 prediction
             ])
@@ -133,7 +138,7 @@ class EncoderDecoderSF(NetworkModel):
             prediction = decoders[3](x)
             all_predictions.append(prediction)
 
-        predictions_combined = tf.keras.layers.Lambda(lambda x: tf.keras.layers.Concatenate(axis=1)(x), name="SessionFeatures_Predictions")(all_predictions)
+        predictions_combined = tf.keras.layers.Lambda(lambda x: tf.keras.layers.Concatenate(axis=1)(x), name="DecoderSessionFeatures_Predictions")(all_predictions)
         self.encoder_level_bidirs = encoder_level_bidirs
 
         self.network = tf.keras.Model(inputs=[sf_input, first_half_tf_input, second_half_tf_input, previous_predicted_input],
@@ -196,7 +201,7 @@ class EncoderDecoderSF(NetworkModel):
 
     def call_on_batch(self, batch_input):
         batch_len = batch_input[0].shape[0]
-        network_output = self.network.predict_on_batch(batch_input).numpy()
+        network_output = self.network.predict_on_batch(batch_input)
         return np.around(network_output[:, :, 2]).reshape((batch_len, 10, 1))
 
     def train_on_batch(self, inputs, targets):
@@ -231,7 +236,6 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
-    parser.add_argument("--sf_preprocessor", default="NonePreprocessor", type=str, help="Name of the session features preprocessor to use.")
     parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
     parser.add_argument("--model_name", default="encoder_decoder_sf", type=str, help="Name of the model to save.")
     parser.add_argument("--saved_weights_folder", default=".." + os.sep + "saved_models" + os.sep + "edsf_5" + os.sep + "encoder_decoder_sf", type=str, help="Name of the folder of saved lengths.")
@@ -248,7 +252,7 @@ if __name__ == "__main__":
     if args.saved_weights_folder is not None:
         model.network.load_weights(args.saved_weights_folder)
 
-    predictor = Predictor(model, args.tf_preprocessor, args.sf_preprocessor)
+    predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
     maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 

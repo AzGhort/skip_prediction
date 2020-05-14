@@ -4,10 +4,9 @@ import datetime
 
 
 class Predictor:
-    def __init__(self, model, tf_preprocessor_name=None, sf_preprocessor_name=None):
+    def __init__(self, model, tf_preprocessor_name=None):
         self.model = model
         self.tf_preprocessor_name = tf_preprocessor_name
-        self.sf_preprocessor_name = sf_preprocessor_name
 
     def predict(self, sf, tf_first, tf_second):
         return self.model(sf, tf_first, tf_second)
