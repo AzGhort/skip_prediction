@@ -68,7 +68,13 @@ class SpotifyDataset:
         processed = 0
         for filename in os.listdir(self.log_folder):
             if filename.endswith('.csv'):
-                print("[Spotify Dataset]: " + str(processed * 100.0 / session_file_count) + " % of logs already processed.")
+                percents = processed * 100.0 / session_file_count
+                #if percents <= 33:
+                #    processed += 1
+                #   continue
+                if percents > 33:
+                    break
+                print("[Spotify Dataset]: " + str(percents) + " % of logs already processed.")
                 print("[Spotify Dataset]: Creating dataset from session log file " + filename)
                 data = self.parser.get_data_from_file(os.path.join(self.log_folder, filename))
                 processed += 1

@@ -40,7 +40,7 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
 
         self.network.compile(
             optimizer=tf.optimizers.Adam(),
-            loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+            loss=tf.keras.losses.BinaryCrossentropy(),
             sample_weight_mode='temporal' if weighted_loss else None,
             metrics=[tf.keras.metrics.BinaryAccuracy()]
         )
@@ -81,7 +81,7 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
 
     def call_on_batch(self, batch_input):
         batch_len = batch_input[0].shape[0]
-        network_output = self.network.predict_on_batch(batch_input)
+        network_output = self.network.predict_on_batch(batch_input).numpy()
         return np.around(network_output[:, :]).reshape((batch_len, 10, 1))
 
     def train_on_batch(self, inputs, targets):
@@ -126,9 +126,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "small_train_set", type=str, help="Name of the train log folder.")
     parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
-    parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
+    parser.add_argument("--tf_folder", default="." + os.sep + "tf", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
-    parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
+    parser.add_argument("--batch_size", default=1024, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
     parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
@@ -146,6 +146,7 @@ if __name__ == "__main__":
     tf.random.set_seed(args.seed)
 
     model = FinetunedEDSFDoubleDecoderModel(args.batch_size, 100, args.saved_weights_folder, args.weighted_loss, args.trainable_decoder)
+    model.network.load_weights(args.result_dir + os.sep + args.model_name)
 
     predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
