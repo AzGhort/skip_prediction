@@ -72,8 +72,8 @@ class SpotifyDataset:
                 #if percents <= 33:
                 #    processed += 1
                 #   continue
-                if percents > 33:
-                    break
+                #if percents > 33:
+                #    break
                 print("[Spotify Dataset]: " + str(percents) + " % of logs already processed.")
                 print("[Spotify Dataset]: Creating dataset from session log file " + filename)
                 data = self.parser.get_data_from_file(os.path.join(self.log_folder, filename))
