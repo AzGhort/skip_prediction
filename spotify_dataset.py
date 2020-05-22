@@ -63,17 +63,23 @@ class SpotifyDataset:
         fraction = int(length * percents / 100.0)
         return data[:fraction], data[fraction:]
 
-    def get_dataset(self, split_to_train_dev=True, percents=95):
+    def get_dataset(self, split_to_train_dev=True, split_percents=95):
         session_file_count = len([f for f in os.listdir(self.log_folder) if f.endswith('.csv')])
         processed = 0
         for filename in os.listdir(self.log_folder):
             if filename.endswith('.csv'):
-                print("[Spotify Dataset]: " + str(processed * 100.0 / session_file_count) + " % of logs already processed.")
+                percents = processed * 100.0 / session_file_count
+                if percents > 66:
+                    break
+                if percents <= -1:
+                    processed += 1
+                    continue
+                print("[Spotify Dataset]: " + str(percents) + " % of logs already processed.")
                 print("[Spotify Dataset]: Creating dataset from session log file " + filename)
                 data = self.parser.get_data_from_file(os.path.join(self.log_folder, filename))
                 processed += 1
                 if split_to_train_dev:
-                    train, dev = self._split_to_dev_train(data, percents)
+                    train, dev = self._split_to_dev_train(data, split_percents)
                     yield train, dev
                 else:
                     yield self.Dataset(data, shuffle_batches=False)

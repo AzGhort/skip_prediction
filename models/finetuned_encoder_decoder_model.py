@@ -13,6 +13,7 @@ class FinetunedEncoderDecoderModel(NetworkModel):
         self.session_representation = ed.session_representation
         self.second_half_tf_transformer = ed.second_half_tf_transformer
         self.pretrained_model = ed.network
+        self.sf_batch_norm = ed.sf_batch_norm
 
         if saved_model_file is not None:
             self.pretrained_model.load_weights(saved_model_file)

@@ -8,8 +8,8 @@ from prediction_importances import *
 
 
 class FinetunedEDSFSkipDecoderModel(FinetunedEncoderDecoderModel):
-    def __init__(self, batch_size, verbose_each, saved_model_file, weighted_loss):
-        super(FinetunedEDSFSkipDecoderModel, self).__init__(batch_size, verbose_each, saved_model_file)
+    def __init__(self, batch_size, verbose_each, saved_model_file, weighted_loss, trainable_decoder):
+        super(FinetunedEDSFSkipDecoderModel, self).__init__(batch_size, verbose_each, saved_model_file, trainable_decoder)
 
         transformer = tf.keras.layers.Dense(256, activation=tf.nn.relu)
         previous_predicted_input = tf.keras.layers.Input(shape=(1, 1))
@@ -70,7 +70,7 @@ class FinetunedEDSFSkipDecoderModel(FinetunedEncoderDecoderModel):
 
         self.network.compile(
             optimizer=tf.optimizers.Adam(),
-            loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+            loss=tf.keras.losses.BinaryCrossentropy(),
             sample_weight_mode='temporal' if weighted_loss else None,
             metrics=[tf.keras.metrics.BinaryAccuracy()]
         )
@@ -111,7 +111,7 @@ class FinetunedEDSFSkipDecoderModel(FinetunedEncoderDecoderModel):
 
     def call_on_batch(self, batch_input):
         batch_len = batch_input[0].shape[0]
-        network_output = self.network.predict_on_batch(batch_input).numpy()
+        network_output = self.network.predict_on_batch(batch_input)
         return np.around(network_output[:, :]).reshape((batch_len, 10, 1))
 
     def train_on_batch(self, inputs, targets):
@@ -154,17 +154,18 @@ if __name__ == "__main__":
     from predictor import Predictor
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "one_file_train_set", type=str, help="Name of the train log folder.")
-    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "example_set", type=str, help="Name of the test log folder.")
+    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "small_train_set", type=str, help="Name of the train log folder.")
+    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
     parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
-    parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
+    parser.add_argument("--batch_size", default=1024, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
     parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
     parser.add_argument("--model_name", default="finetuned_edsf_skip_decoder", type=str, help="Name of the model to save.")
     parser.add_argument("--saved_weights_folder", default=".." + os.sep + "saved_models" + os.sep + "edsf_5" + os.sep + "encoder_decoder_sf", type=str, help="Name of the folder of saved lengths.")
     parser.add_argument("--weighted_loss", default=False, type=bool, help="Whether to use weighted loss.")
+    parser.add_argument("--trainable_decoder", default=True, type=bool, help="Whether the original decoder layers are trainable.")
     args = parser.parse_args()
 
     # no warnings
@@ -174,13 +175,15 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
 
-    model = FinetunedEDSFSkipDecoderModel(args.batch_size, 10, args.saved_weights_folder, args.weighted_loss)
+    model = FinetunedEDSFSkipDecoderModel(args.batch_size, 100, args.saved_weights_folder, args.weighted_loss, args.trainable_decoder)
+    model.network.load_weights(args.result_dir + os.sep + args.model_name)
 
     predictor = Predictor(model, args.tf_preprocessor)
-    predictor.train(args.episodes, args.train_folder, args.tf_folder)
+    #predictor.train(args.episodes, args.train_folder, args.tf_folder)
+
     maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 
-    model.save_model(args.result_dir + os.sep + args.model_name)
+    #model.save_model(args.result_dir + os.sep + args.model_name)
 
     print(str(args))
     print("Finetuned edsf skip decoder prediction model achieved " + str(maa) + " mean average accuracy")

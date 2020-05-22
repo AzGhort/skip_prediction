@@ -19,6 +19,7 @@ class EncoderDecoderSF(NetworkModel):
         # sf_embed = tf.keras.layers.Embedding(2048, 32, name="SF_Embedding", mask_zero=True)(sf_flatten)
         sf_batch_norm = tf.keras.layers.BatchNormalization(name="SF_BatchNorm", autocast=False)(sf_input)
         sf_transformer = tf.keras.layers.Dense(64, activation=tf.nn.relu, name="SF_Transformer")(sf_batch_norm)
+        self.sf_batch_norm = sf_batch_norm
 
         # track features
         # use same embedding for first and second half track features

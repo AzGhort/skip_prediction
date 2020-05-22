@@ -7,36 +7,42 @@ import logging
 from prediction_importances import *
 
 
-class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
-    def __init__(self, batch_size, verbose_each, saved_model_file, weighted_loss, trainable_decoder):
-        super(FinetunedEDSFDoubleDecoderModel, self).__init__(batch_size, verbose_each, saved_model_file, trainable_decoder)
-        first_half_sf_predicted = self.pretrained_model.output
+class FinetunedEDSFFirstPredictionModel(FinetunedEncoderDecoderModel):
+    def __init__(self, batch_size, verbose_each, saved_model_file, weighted_loss):
+        super(FinetunedEDSFFirstPredictionModel, self).__init__(batch_size, verbose_each, saved_model_file, False)
+        self.weighted_loss = weighted_loss
+        encoder_out_states = self.encoder_out_states
+        self.first_half_sf_predicted = self.pretrained_model.output
 
+        transformer = tf.keras.layers.Dense(256, activation=tf.nn.relu)
         decoders = [
+            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_sequences=True, return_state=True), name="TFDecoder"),
             tf.keras.layers.LSTM(256, return_sequences=True, return_state=True, name="SkipDecoder"),
             tf.keras.layers.Dropout(0.5, name="SkipDropout"),
+            tf.keras.layers.Dense(128, activation=tf.nn.relu, name='SkipFeedforward_1'),
+            tf.keras.layers.Dense(64, activation=tf.nn.relu, name='SkipFeedforward_2'),
             tf.keras.layers.Dense(1, activation=tf.nn.sigmoid, name="SkipPrediction")
         ]
 
-        all_predictions = []
-        for i in range(0, 10):
-            x = tf.keras.layers.Concatenate(name="SkipConcatenatedTo_PredictedSF_" + str(i))([
-                self.encoder_level_bidirs[i],
-                self._get_nth_lambda_layer(first_half_sf_predicted, i)
-            ])
-            if i == 0:
-                x, state_h, state_c = decoders[0](x)
-            else:
-                x, state_h, state_c = decoders[0](x, initial_state=[state_h, state_c])
-            x = decoders[1](x)
-            skip_prediction = decoders[2](x)
-            all_predictions.append(skip_prediction)
-
-        predictions_combined = tf.keras.layers.Lambda(lambda x: tf.keras.layers.Concatenate(axis=1)(x), name="Skip_predictions")(all_predictions)
+        x = tf.keras.layers.Concatenate(name="DecoderInput_0")([
+            tf.keras.layers.RepeatVector(1, name="SecondHalf_SessionRepresentation_0")(self.session_representation),
+            tf.keras.layers.RepeatVector(1, name="SecondHalf_TF_0")(
+                self._get_nth_lambda_layer(self.second_half_tf_transformer, 0))
+        ])
+        x = transformer(x)
+        x, forward_h, forward_c, backward_h, backward_c = decoders[0](x, initial_state=[encoder_out_states[0],
+                                                                                        encoder_out_states[1],
+                                                                                        encoder_out_states[2],
+                                                                                        encoder_out_states[3]])
+        x, state_h, state_c = decoders[1](x)
+        x = decoders[2](x)
+        x = decoders[3](x)
+        x = decoders[4](x)
+        prediction = decoders[5](x)
 
         self.network = tf.keras.Model(
             inputs=self.pretrained_model.inputs,
-            outputs=[predictions_combined])
+            outputs=[prediction])
 
         self.network.compile(
             optimizer=tf.optimizers.Adam(),
@@ -44,10 +50,8 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
             sample_weight_mode='temporal' if weighted_loss else None,
             metrics=[tf.keras.metrics.BinaryAccuracy()]
         )
-
-        self.weighted_loss = weighted_loss
         #os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
-        #tf.keras.utils.plot_model(self.network, to_file='finetuned_edsf_double_decoder.png')
+        #tf.keras.utils.plot_model(self.network, to_file='finetuned_edsf_first_prediction.png')
 
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         second_half_real_length = sf_second.shape[0]
@@ -63,8 +67,31 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
         return predictions
 
     @staticmethod
+    def _get_nth_session_feature_window(first_half, second_half, n):
+        if n == 0:
+            return first_half
+        batch_len = first_half.shape[0]
+
+        if first_half.shape[2] != second_half.shape[2]:
+            session_lengths = np.full((batch_len, n, 1), 20.)
+            session_positions = np.array([10. + i + 1. for i in range(n)])
+            session_positions = np.tile(session_positions, (batch_len, 1)).reshape((batch_len, n, 1))
+            first_two_columns = np.concatenate((session_positions, session_lengths), 2)
+            cut_second_half = second_half[:, :n, :]
+            second_half_columns = np.concatenate((first_two_columns, cut_second_half), 2)
+        else:
+            second_half_columns = second_half[:, :n, :]
+        first_half_columns = first_half[:, n:, :]
+        return np.concatenate((first_half_columns, second_half_columns), 1)
+
+    @staticmethod
     def _get_nth_lambda_layer(tensor, n):
-        return tf.keras.layers.Lambda(lambda x: tf.slice(x, [0, n, 0], [-1, 1, -1]))(tensor)
+        return tf.keras.layers.Lambda(lambda x: x[:, n])(tensor)
+
+    @staticmethod
+    def _get_last_session_features(sf_first_half):
+        last_sf = sf_first_half[-1, :SpotifyDataset.SESSION_PREDICTABLE_FEATURES]
+        return last_sf.reshape((1, SpotifyDataset.SESSION_PREDICTABLE_FEATURES))
 
     @staticmethod
     def _pad_input(features):
@@ -74,36 +101,33 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
         constant = -1 if self.weighted_loss else 0
         return np.pad(skips, [(0, 10 - skips.shape[0]), (0, 0)], constant_values=constant)
 
-    @staticmethod
-    def _get_last_session_features(sf_first_half):
-        last_sf = sf_first_half[-1, :SpotifyDataset.SESSION_PREDICTABLE_FEATURES]
-        return last_sf.reshape((1, SpotifyDataset.SESSION_PREDICTABLE_FEATURES))
-
-    def call_on_batch(self, batch_input):
-        batch_len = batch_input[0].shape[0]
-        network_output = self.network.predict_on_batch(batch_input)
-        return np.around(network_output[:, :]).reshape((batch_len, 10, 1))
+    def call_on_batch(self, inputs):
+        sf_second_half = self.pretrained_model.predict_on_batch(inputs[:-1])
+        sf_first_half = inputs[0]
+        outputs = []
+        for i in range(0, 10):
+            shifted_inputs = self._get_nth_session_feature_window(sf_first_half, sf_second_half, i)
+            network_output = self.network.predict_on_batch([shifted_inputs, inputs[1], inputs[2], inputs[3]])
+            outputs.append(np.around(network_output[:, :]))
+        return np.concatenate(outputs, 1)
 
     def train_on_batch(self, inputs, targets):
-        if not self.weighted_loss:
-            return self.network.train_on_batch(inputs, targets)
-        else:
-            current_batch_size = min(self.batch_size, len(targets))
-            sample_weights = np.zeros((current_batch_size, 10), dtype=np.float32)
-            i = 0
-            for sample in targets:
-                j = 0
-                for skip in sample:
-                    if skip == -1:
-                        break
-                    sample_weights[i][j] = Importances[j]
-                    j += 1
-                i += 1
-            return self.network.train_on_batch(inputs, targets, sample_weight=sample_weights)
+        sf_first_half = inputs[0]
+        sf_second_half = inputs[4]
+        batch_len = sf_first_half.shape[0]
+        loss, metric = 0, 0
+        for i in range(10):
+            shifted_inputs = self._get_nth_session_feature_window(sf_first_half, sf_second_half, i)
+            shifted_targets = targets[:, i, :].reshape((batch_len, 1, 1))
+            l, m = self.network.train_on_batch([shifted_inputs, inputs[1], inputs[2], inputs[3]], shifted_targets)
+            loss += l
+            metric += m
+        return loss / 10.0, metric / 10.0
 
     def prepare_batch(self, batch):
         current_batch_size = min(self.batch_size, batch[DatasetDescription.SF_FIRST_HALF].shape[0])
         sfs_first_half = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES), dtype=np.float32)
+        sfs_second_half = np.zeros((current_batch_size, 10, SpotifyDataset.SESSION_FEATURES), dtype=np.float32)
         tfs_first_half = np.zeros((current_batch_size, 10, SpotifyDataset.TRACK_FEATURES), dtype=np.float32)
         tfs_second_half = np.zeros((current_batch_size, 10, SpotifyDataset.TRACK_FEATURES), dtype=np.float32)
         targets = np.zeros((current_batch_size, 10, 1), dtype=np.float32)
@@ -113,10 +137,11 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
             last_sfs_first_half[i] = self._get_last_session_features(batch[DatasetDescription.SF_FIRST_HALF][i])
             targets[i] = self._pad_targets(batch[DatasetDescription.SKIPS][i])
             sfs_first_half[i] = self._pad_input(batch[DatasetDescription.SF_FIRST_HALF][i])
+            sfs_second_half[i] = self._pad_input(batch[DatasetDescription.SF_SECOND_HALF][i])
             tfs_first_half[i] = self._pad_input(batch[DatasetDescription.TF_FIRST_HALF][i])
             tfs_second_half[i] = self._pad_input(batch[DatasetDescription.TF_SECOND_HALF][i])
 
-        return [sfs_first_half, tfs_first_half, tfs_second_half, last_sfs_first_half], targets
+        return [sfs_first_half, tfs_first_half, tfs_second_half, last_sfs_first_half, sfs_second_half], targets
 
 
 if __name__ == "__main__":
@@ -132,10 +157,9 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
     parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
-    parser.add_argument("--model_name", default="finetuned_edsf_double_decoder", type=str, help="Name of the model to save.")
+    parser.add_argument("--model_name", default="finetuned_edsf_first_prediction", type=str, help="Name of the model to save.")
     parser.add_argument("--saved_weights_folder", default=".." + os.sep + "saved_models" + os.sep + "edsf_5" + os.sep + "encoder_decoder_sf", type=str, help="Name of the folder of saved lengths.")
-    parser.add_argument("--weighted_loss", default=True, type=bool, help="Whether to use weighted loss.")
-    parser.add_argument("--trainable_decoder", default=True, type=bool, help="Whether the original decoder layers are trainable.")
+    parser.add_argument("--weighted_loss", default=False, type=bool, help="Whether to use weighted loss.")
     args = parser.parse_args()
 
     # no warnings
@@ -145,8 +169,8 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
 
-    model = FinetunedEDSFDoubleDecoderModel(args.batch_size, 100, args.saved_weights_folder, args.weighted_loss, args.trainable_decoder)
-    model.network.load_weights(args.result_dir + os.sep + args.model_name)
+    model = FinetunedEDSFFirstPredictionModel(args.batch_size, 100, args.saved_weights_folder, args.weighted_loss)
+    #model.network.load_weights(args.result_dir + os.sep + args.model_name)
 
     predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
@@ -156,6 +180,6 @@ if __name__ == "__main__":
     model.save_model(args.result_dir + os.sep + args.model_name)
 
     print(str(args))
-    print("Finetuned edsf double decoder prediction model achieved " + str(maa) + " mean average accuracy")
-    print("Finetuned edsf double decoder prediction model achieved " + str(fpa) + " first prediction accuracy")
+    print("Finetuned edsf first prediction model achieved " + str(maa) + " mean average accuracy")
+    print("Finetuned edsf first prediction model achieved " + str(fpa) + " first prediction accuracy")
     print("------------------------------------")
