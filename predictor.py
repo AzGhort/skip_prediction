@@ -56,3 +56,26 @@ class Predictor:
         mean_average_accuracy = np.mean(aas)
         first_prediction_accuracy = np.mean(fas)
         return mean_average_accuracy, first_prediction_accuracy
+
+    def evaluate_true_accuracies(self, folder, tf_folder):
+        aas = [[] for _ in range(10)]
+        means = []
+        print("[Predictor]: EVALUATING TRUE ACCURACIES")
+        if folder is None or tf_folder is None:
+            raise AttributeError("Must specify log and tf folder.")
+        print("[Predictor]: Initializing, session features folder: \'" + str(
+            folder) + "\', track features folder: \'" + str(tf_folder) + "\'.")
+        spotify = SpotifyDataset(folder, tf_folder, self.tf_preprocessor_name)
+        for test_set in spotify.get_dataset(False):
+            print("[Predictor]: Dataset created succesfully.")
+            accuracies, mean = self.model.evaluate_true_accuracies(test_set)
+            print("[Predictor]: Test set average accuracy: " + str(mean))
+            i = 0
+            for acc in accuracies:
+                aas[i].append(acc)
+                print("[Predictor]: Test set " + str(11 + i) + "th prediction accuracy: " + str(acc))
+                i += 1
+            means.append(mean)
+        mean_accuracy = np.mean(means)
+        average_accuracies = [np.mean(acc) for acc in aas]
+        return average_accuracies, mean_accuracy

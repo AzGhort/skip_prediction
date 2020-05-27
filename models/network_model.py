@@ -28,3 +28,13 @@ class NetworkModel(Model):
             average_accuracies.append(self.average_accuracy(predictions, skips))
             first_prediction_accuracies.append(self.first_prediction_accuracy(predictions, skips))
         return np.mean(average_accuracies), np.mean(first_prediction_accuracies)
+
+    def evaluate_true_accuracies(self, set):
+        accuracies = [[] for _ in range(10)]
+        for batch in set.batches(self.batch_size):
+            skips = batch[DatasetDescription.SKIPS]
+            x, _ = self.prepare_batch(batch)
+            predictions = self.call_on_batch(x)
+            self.true_accuracies(predictions, skips, accuracies)
+        means = [np.mean(a) for a in accuracies]
+        return means, np.mean(means)

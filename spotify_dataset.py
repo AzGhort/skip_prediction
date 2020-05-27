@@ -69,9 +69,9 @@ class SpotifyDataset:
         for filename in os.listdir(self.log_folder):
             if filename.endswith('.csv'):
                 percents = processed * 100.0 / session_file_count
-                if percents > 66:
+                if percents > 100:
                     break
-                if percents <= -1:
+                if percents <= 80:
                     processed += 1
                     continue
                 print("[Spotify Dataset]: " + str(percents) + " % of logs already processed.")

@@ -54,5 +54,20 @@ class Model:
                 fpas.append(0.0)
         return np.mean(fpas)
 
+    @staticmethod
+    def true_accuracies(predictions, targets, accuracies):
+        targets_length = targets.shape[0]
+        # for each session
+        for i in range(targets_length):
+            aa = 0
+            correct = 0
+            t = targets[i].shape[0]
+            # for each track
+            for j in range(t):
+                if predictions[i][j][0] == targets[i][j][0]:
+                    accuracies[j].append(1.0)
+                else:
+                    accuracies[j].append(0.0)
+
     def __call__(self, sf_first, sf_second, tf_first, tf_second):
         raise NotImplementedError()

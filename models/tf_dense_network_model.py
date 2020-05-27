@@ -12,13 +12,8 @@ class TrackFeaturesDenseNetwork(NetworkModel):
 
     def __init__(self, hidden_layer_size, hidden_layers_count, batch_size, verbose_each=10):
         layers = [tf.keras.layers.InputLayer(SpotifyDataset.TRACK_FEATURES)]
-        layers.append(tf.keras.layers.Dense(64, activation=tf.nn.relu))
-        layers.append(tf.keras.layers.Dense(64, activation=tf.nn.relu))
-        layers.append(tf.keras.layers.Dense(32, activation=tf.nn.relu))
-        layers.append(tf.keras.layers.Dense(16, activation=tf.nn.relu))
-        layers.append(tf.keras.layers.Dense(8, activation=tf.nn.relu))
-        #for _ in range(hidden_layers_count):
-        #    layers.append(tf.keras.layers.Dense(hidden_layer_size, activation=tf.nn.relu))
+        for _ in range(hidden_layers_count):
+            layers.append(tf.keras.layers.Dense(hidden_layer_size, activation=tf.nn.relu))
         layers.append(tf.keras.layers.Dense(1, activation=tf.nn.sigmoid))
         self.network = tf.keras.Sequential(layers)
 
@@ -67,7 +62,7 @@ class TrackFeaturesDenseNetwork(NetworkModel):
         ret = []
         for tf in tf_second:
             tf_reshaped = tf.reshape((1, SpotifyDataset.TRACK_FEATURES))
-            network_output = self.network(tf_reshaped).numpy().flatten()
+            network_output = self.network(tf_reshaped).flatten()
             ret.append(np.around(network_output[0]))
         return np.array(ret)
 

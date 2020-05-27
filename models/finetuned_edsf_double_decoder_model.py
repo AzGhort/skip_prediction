@@ -10,7 +10,7 @@ from prediction_importances import *
 class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
     def __init__(self, batch_size, verbose_each, saved_model_file, weighted_loss, trainable_decoder):
         super(FinetunedEDSFDoubleDecoderModel, self).__init__(batch_size, verbose_each, saved_model_file, trainable_decoder)
-        first_half_sf_predicted = self.pretrained_model.output
+        second_half_sf_predicted = self.pretrained_model.output
 
         decoders = [
             tf.keras.layers.LSTM(256, return_sequences=True, return_state=True, name="SkipDecoder"),
@@ -22,7 +22,7 @@ class FinetunedEDSFDoubleDecoderModel(FinetunedEncoderDecoderModel):
         for i in range(0, 10):
             x = tf.keras.layers.Concatenate(name="SkipConcatenatedTo_PredictedSF_" + str(i))([
                 self.encoder_level_bidirs[i],
-                self._get_nth_lambda_layer(first_half_sf_predicted, i)
+                self._get_nth_lambda_layer(second_half_sf_predicted, i)
             ])
             if i == 0:
                 x, state_h, state_c = decoders[0](x)
@@ -124,11 +124,11 @@ if __name__ == "__main__":
     from predictor import Predictor
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "small_train_set", type=str, help="Name of the train log folder.")
+    parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "mini_train_set", type=str, help="Name of the train log folder.")
     parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
     parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
-    parser.add_argument("--batch_size", default=1024, type=int, help="Size of the batch.")
+    parser.add_argument("--batch_size", default=512, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
     parser.add_argument("--tf_preprocessor", default="MinMaxScaler", type=str, help="Name of the track features preprocessor to use.")
     parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
@@ -146,16 +146,16 @@ if __name__ == "__main__":
     tf.random.set_seed(args.seed)
 
     model = FinetunedEDSFDoubleDecoderModel(args.batch_size, 100, args.saved_weights_folder, args.weighted_loss, args.trainable_decoder)
-    model.network.load_weights(args.result_dir + os.sep + args.model_name)
+    #model.network.load_weights(args.result_dir + os.sep + args.model_name)
 
     predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
 
-    maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
+    #maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 
     model.save_model(args.result_dir + os.sep + args.model_name)
 
     print(str(args))
-    print("Finetuned edsf double decoder prediction model achieved " + str(maa) + " mean average accuracy")
-    print("Finetuned edsf double decoder prediction model achieved " + str(fpa) + " first prediction accuracy")
+    #print("Finetuned edsf double decoder prediction model achieved " + str(maa) + " mean average accuracy")
+    #print("Finetuned edsf double decoder prediction model achieved " + str(fpa) + " first prediction accuracy")
     print("------------------------------------")

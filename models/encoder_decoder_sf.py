@@ -62,10 +62,7 @@ class EncoderDecoderSF(NetworkModel):
         # ENCODER
         # ---------------------------------------------------------------------------
         first_half_session_representation = tf.keras.layers.Lambda(self._repeat_vector, name="FirstHalfRepresentation",
-                                                                   output_shape=(None, 256))([
-                                                                        session_representation,
-                                                                        first_half_tf_transformer
-                                                                        ])
+                                                                   output_shape=(None, 256))([session_representation, 10])
 
         x = tf.keras.layers.Concatenate(name="EncoderInput")([
             first_half_session_representation,
@@ -162,8 +159,8 @@ class EncoderDecoderSF(NetworkModel):
     @staticmethod
     def _repeat_vector(args):
         layer_to_repeat = args[0]
-        sequence_layer = args[1]
-        return tf.keras.layers.RepeatVector(tf.shape(sequence_layer)[1], name="FeaturesRepeat")(layer_to_repeat)
+        repeat_count = args[1]
+        return tf.keras.layers.RepeatVector(repeat_count, name="FeaturesRepeat")(layer_to_repeat)
 
     @staticmethod
     def _get_nth_lambda_layer(tensor, n):
