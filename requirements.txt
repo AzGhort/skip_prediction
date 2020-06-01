@@ -1,0 +1,6 @@
+chart-studio==1.0.0
+numpy==1.17.1
+plotly==4.4.1
+scikit-learn==0.21.3
+scipy==1.4.1
+tensorflow-gpu==2.2.0

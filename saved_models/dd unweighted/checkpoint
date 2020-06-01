@@ -1,0 +1,2 @@
+model_checkpoint_path: "finetuned_edsf_double_decoder"
+all_model_checkpoint_paths: "finetuned_edsf_double_decoder"
