@@ -146,16 +146,16 @@ if __name__ == "__main__":
     tf.random.set_seed(args.seed)
 
     model = FinetunedEDSFDoubleDecoderModel(args.batch_size, 100, args.saved_weights_folder, args.weighted_loss, args.trainable_decoder)
-    #model.network.load_weights(args.result_dir + os.sep + args.model_name)
+    model.network.load_weights(args.result_dir + os.sep + args.model_name)
 
     predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
 
-    #maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
+    maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 
     model.save_model(args.result_dir + os.sep + args.model_name)
 
     print(str(args))
-    #print("Finetuned edsf double decoder prediction model achieved " + str(maa) + " mean average accuracy")
-    #print("Finetuned edsf double decoder prediction model achieved " + str(fpa) + " first prediction accuracy")
+    print("Finetuned edsf double decoder prediction model achieved " + str(maa) + " mean average accuracy")
+    print("Finetuned edsf double decoder prediction model achieved " + str(fpa) + " first prediction accuracy")
     print("------------------------------------")

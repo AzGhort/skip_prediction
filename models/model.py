@@ -25,6 +25,23 @@ class Model:
             first_prediction_accuracies.append(self.first_prediction_accuracy(prediction, skips))
         return np.mean(average_accuracies), np.mean(first_prediction_accuracies)
 
+    def evaluate_skip_accuracies(self, set):
+        accuracies = [[] for _ in range(10)]
+        for i in range(len(set.data[DatasetDescription.SF_FIRST_HALF])):
+            sf_first = set.data[DatasetDescription.SF_FIRST_HALF][i]
+            sf_second = set.data[DatasetDescription.SF_SECOND_HALF][i]
+            tf_first = set.data[DatasetDescription.TF_FIRST_HALF][i]
+            tf_second = set.data[DatasetDescription.TF_SECOND_HALF][i]
+            skips = set.data[DatasetDescription.SKIPS][i]
+            prediction = self(sf_first, sf_second, tf_first, tf_second)
+
+            prediction_len = prediction.shape[0]
+            prediction = prediction.reshape((1, prediction_len, 1))
+            skips = skips.reshape((1, prediction_len, 1))
+            self.skip_accuracies(prediction, skips, accuracies)
+        means = [np.mean(a) for a in accuracies]
+        return means, np.mean(means)
+
     @staticmethod
     def average_accuracy(predictions, targets):
         aas = []
@@ -55,12 +72,10 @@ class Model:
         return np.mean(fpas)
 
     @staticmethod
-    def true_accuracies(predictions, targets, accuracies):
+    def skip_accuracies(predictions, targets, accuracies):
         targets_length = targets.shape[0]
         # for each session
         for i in range(targets_length):
-            aa = 0
-            correct = 0
             t = targets[i].shape[0]
             # for each track
             for j in range(t):

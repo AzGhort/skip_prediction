@@ -1,15 +1,16 @@
 import numpy as np
-from models.network_model import NetworkModel
+from models.skip_prediction_nn_model import SkipPredictionNNModel
 from dataset_description import *
 from spotify_dataset import SpotifyDataset
 import os
 import tensorflow as tf
 from prediction_importances import *
 import logging
+from preprocessing.session_feature_stats import *
 
 
 # encoder-decoder architecture, predicting the session features 2 - 18
-class EncoderDecoderSF(NetworkModel):
+class EncoderDecoderSF(SkipPredictionNNModel):
     def __init__(self, batch_size, verbose_each=10):
         # SESSION REPRESENTATION
         # ---------------------------------------------------------------------------
@@ -176,6 +177,23 @@ class EncoderDecoderSF(NetworkModel):
         return np.pad(features, [(0, 10 - features.shape[0]), (0, 0)])
 
     @staticmethod
+    def _upscale_session_features(sf):
+        sf[:, :, :10] = np.around(sf[:, :, :10])
+        sf[:, :, 10] = np.around(np.exp(sf[:, :, 10] * LogMaximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD]) - 1)
+        sf[:, :, 11] = np.around(np.exp(sf[:, :, 11] * LogMaximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK]) - 1)
+        sf[:, :, 12] = np.around(sf[:, :, 12])
+        sf[:, :, 13] = np.around(sf[:, :, 13] * Maximums[SessionFeaturesFields.HOUR_OF_DAY])
+        sf[:, :, 14] = np.around(sf[:, :, 14])
+        sf[:, :, 15] = np.around(sf[:, :, 15] * Maximums[SessionFeaturesFields.CONTEXT_TYPE])
+
+    @staticmethod
+    def _upscale_targets(sf):
+        sf[:][:][10] = np.around(np.exp(sf[:][:][10] * LogMaximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKFWD])-1)
+        sf[:][:][11] = np.around(np.exp(sf[:][:][11] * LogMaximums[SessionFeaturesFields.HIST_USER_BEHAVIOR_N_SEEKBACK])-1)
+        sf[:][:][13] = np.around(sf[:][:][13] * Maximums[SessionFeaturesFields.HOUR_OF_DAY])
+        sf[:][:][15] = np.around(sf[:][:][15] * Maximums[SessionFeaturesFields.CONTEXT_TYPE])
+
+    @staticmethod
     def _get_last_session_features(sf_first_half):
         last_sf = sf_first_half[-1, :SpotifyDataset.SESSION_PREDICTABLE_FEATURES]
         return last_sf.reshape((1, SpotifyDataset.SESSION_PREDICTABLE_FEATURES))
@@ -196,6 +214,38 @@ class EncoderDecoderSF(NetworkModel):
             tfs_second_half[i] = self._pad_input(batch[DatasetDescription.TF_SECOND_HALF][i])
 
         return [sfs_first_half, tfs_first_half, tfs_second_half, last_sfs_first_half], targets
+
+    def predict_all_on_batch(self, batch_input):
+        batch_len = batch_input[0].shape[0]
+        network_output = self.network.predict_on_batch(batch_input)
+        return network_output.reshape((batch_len, 10, SpotifyDataset.SESSION_PREDICTABLE_FEATURES))
+
+    def evaluate_all_feature_accuracies(self, set):
+        accuracies = [[[] for _ in range(10)] for _ in range(SpotifyDataset.SESSION_PREDICTABLE_FEATURES)]
+        mean_accuracies = [[0 for _ in range(10)] for _ in range(SpotifyDataset.SESSION_PREDICTABLE_FEATURES)]
+        for batch in set.batches(self.batch_size):
+            actual_features = batch[DatasetDescription.SF_SECOND_HALF]
+            x, _ = self.prepare_batch(batch)
+            predicted_features = self.predict_all_on_batch(x)
+            self.append_all_features_accuracies(predicted_features, actual_features, accuracies)
+        for feature_index in range(SpotifyDataset.SESSION_PREDICTABLE_FEATURES):
+            for song_index in range(10):
+                mean_accuracies[feature_index][song_index] = np.mean(accuracies[feature_index][song_index])
+        return mean_accuracies
+
+    def append_all_features_accuracies(self, predicted, actual, accuracies):
+        self._upscale_session_features(predicted)
+        self._upscale_targets(actual)
+        batch_len = predicted[0].shape[0]
+        for batch_index in range(batch_len):
+            for session_index in range(actual[batch_index].shape[0]):
+                for feature_index in range(SpotifyDataset.SESSION_PREDICTABLE_FEATURES):
+                    act = actual[batch_index][session_index][feature_index]
+                    pred = predicted[batch_index][session_index][feature_index]
+                    if act == pred:
+                        accuracies[feature_index][session_index].append(1.0)
+                    else:
+                        accuracies[feature_index][session_index].append(0.0)
 
     def call_on_batch(self, batch_input):
         batch_len = batch_input[0].shape[0]
@@ -228,8 +278,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "example_set", type=str, help="Name of the train log folder.")
-    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "example_set", type=str, help="Name of the test log folder.")
-    parser.add_argument("--tf_folder", default=".." + os.sep + "tf_mini", type=str, help="Name of track features folder")
+    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
+    parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
     parser.add_argument("--episodes", default=1, type=int, help="Number of episodes.")
     parser.add_argument("--batch_size", default=2048, type=int, help="Size of the batch.")
     parser.add_argument("--seed", default=0, type=int, help="Seed to use in numpy and tf.")
@@ -251,6 +301,7 @@ if __name__ == "__main__":
         model.network.load_weights(args.saved_weights_folder)
 
     predictor = Predictor(model, args.tf_preprocessor)
+
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
     maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 

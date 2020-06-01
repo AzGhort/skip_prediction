@@ -75,7 +75,6 @@ for filename in os.listdir("."):
 count_histogram = create_track_count_histogram(tracks)
 skip_histogram = create_track_skip_histogram(tracks)
 
-enum: str
 for enum in enum_histograms.keys():
     write_histogram(enum_histograms[enum], enum)
 

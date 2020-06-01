@@ -1,8 +1,8 @@
-from models.network_model import NetworkModel
+from models.skip_prediction_nn_model import SkipPredictionNNModel
 from models.encoder_decoder_sf import EncoderDecoderSF
 
 
-class FinetunedEncoderDecoderModel(NetworkModel):
+class FinetunedEncoderDecoderModel(SkipPredictionNNModel):
     def __init__(self, batch_size, verbose_each, saved_model_file, trainable_decoder=False):
         self.batch_size = batch_size
         self.verbose_each = verbose_each

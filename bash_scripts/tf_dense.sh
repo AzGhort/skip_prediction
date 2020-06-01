@@ -37,8 +37,8 @@ module add tensorflow-2.0.0-gpu-python3
 
 cd $SCRATCHDIR
 
-python $SCRATCHDIR/skip_prediction/models/tf_dense_network_model.py --tf_folder $TFDIR --train_folder $TRAINDIR --test_folder $TESTDIR --tf_preprocessor $NONEPREPR > $SCRATCHDIR/results/results_nopr.txt
-python $SCRATCHDIR/skip_prediction/models/tf_dense_network_model.py --tf_folder $TFDIR --train_folder $TRAINDIR --test_folder $TESTDIR --tf_preprocessor $MINMAXSCALER >> $SCRATCHDIR/results/results_minmax.txt
-python $SCRATCHDIR/skip_prediction/models/tf_dense_network_model.py --tf_folder $TFDIR --train_folder $TRAINDIR --test_folder $TESTDIR --tf_preprocessor $STANDARDSCALER >> $SCRATCHDIR/results/results_std.txt
+python $SCRATCHDIR/skip_prediction/models/tf_dense_nn_model.py --tf_folder $TFDIR --train_folder $TRAINDIR --test_folder $TESTDIR --tf_preprocessor $NONEPREPR > $SCRATCHDIR/results/results_nopr.txt
+python $SCRATCHDIR/skip_prediction/models/tf_dense_nn_model.py --tf_folder $TFDIR --train_folder $TRAINDIR --test_folder $TESTDIR --tf_preprocessor $MINMAXSCALER >> $SCRATCHDIR/results/results_minmax.txt
+python $SCRATCHDIR/skip_prediction/models/tf_dense_nn_model.py --tf_folder $TFDIR --train_folder $TRAINDIR --test_folder $TESTDIR --tf_preprocessor $STANDARDSCALER >> $SCRATCHDIR/results/results_std.txt
 
 cp -r $SCRATCHDIR/results $DATADIR/tf_results || export CLEAN_SCRATCH=false

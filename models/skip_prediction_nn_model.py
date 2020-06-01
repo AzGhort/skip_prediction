@@ -3,7 +3,7 @@ from dataset_description import DatasetDescription
 import numpy as np
 
 
-class NetworkModel(Model):
+class SkipPredictionNNModel(Model):
     def __init__(self, batch_size, verbose_each):
         self.batch_size = batch_size
         self.verbose_each = verbose_each
@@ -29,12 +29,12 @@ class NetworkModel(Model):
             first_prediction_accuracies.append(self.first_prediction_accuracy(predictions, skips))
         return np.mean(average_accuracies), np.mean(first_prediction_accuracies)
 
-    def evaluate_true_accuracies(self, set):
+    def evaluate_skip_accuracies(self, set):
         accuracies = [[] for _ in range(10)]
         for batch in set.batches(self.batch_size):
             skips = batch[DatasetDescription.SKIPS]
             x, _ = self.prepare_batch(batch)
             predictions = self.call_on_batch(x)
-            self.true_accuracies(predictions, skips, accuracies)
+            self.skip_accuracies(predictions, skips, accuracies)
         means = [np.mean(a) for a in accuracies]
         return means, np.mean(means)

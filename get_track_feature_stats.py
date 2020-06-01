@@ -25,6 +25,14 @@ def create_histograms(map):
     tempo = {}
     time_signature = {}
     valence = {}
+    acoustic_vector_0 = {}
+    acoustic_vector_1 = {}
+    acoustic_vector_2 = {}
+    acoustic_vector_3 = {}
+    acoustic_vector_4 = {}
+    acoustic_vector_5 = {}
+    acoustic_vector_6 = {}
+    acoustic_vector_7 = {}
 
     histograms = {'duration': duration, 'release_year': release_year, 'us_pop_estimate': us_pop_est,
               'acousticness': acousticness, 'beat': beat, 'bounciness': bounciness, 'danceability': danceability,
@@ -32,7 +40,10 @@ def create_histograms(map):
               'instrumentalness': instrumentalness,
               'key': key, 'liveness': liveness, 'loudness': loudness, 'mechanism': mechanism, 'mode': mode,
               'organism': organism, 'speechiness': speechiness, 'tempo': tempo, 'time_signature': time_signature,
-              'valence': valence}
+              'valence': valence, 'acoustic_vector_0': acoustic_vector_0, 'acoustic_vector_1': acoustic_vector_1,
+              'acoustic_vector_2': acoustic_vector_2, 'acoustic_vector_3': acoustic_vector_3,
+              'acoustic_vector_4': acoustic_vector_4, 'acoustic_vector_5': acoustic_vector_5,
+              'acoustic_vector_6': acoustic_vector_6, 'acoustic_vector_7': acoustic_vector_7}
 
     for track_id, features in map.items():
         append_value_to_histogram(duration, 0, features[0])
@@ -56,11 +67,19 @@ def create_histograms(map):
         append_value_to_histogram(tempo, 0, features[18])
         append_value_to_histogram(time_signature, 0, features[19])
         append_value_to_histogram(valence, 2, features[20])
+        append_value_to_histogram(acoustic_vector_0, 2, features[21], 100)
+        append_value_to_histogram(acoustic_vector_1, 2, features[22], 100)
+        append_value_to_histogram(acoustic_vector_2, 2, features[23], 100)
+        append_value_to_histogram(acoustic_vector_3, 2, features[24], 100)
+        append_value_to_histogram(acoustic_vector_4, 2, features[25], 100)
+        append_value_to_histogram(acoustic_vector_5, 2, features[26], 100)
+        append_value_to_histogram(acoustic_vector_6, 2, features[27], 100)
+        append_value_to_histogram(acoustic_vector_7, 2, features[28], 100)
     return histograms
 
 
-def append_value_to_histogram(histogram, decimals, value):
-    rounded = np.around(value, decimals)
+def append_value_to_histogram(histogram, decimals, value, upscale=1):
+    rounded = np.around(value * upscale, decimals)
     if rounded in histogram:
         histogram[rounded] += 1
     else:
@@ -162,7 +181,8 @@ if __name__ == "__main__":
     parser.add_argument("--folder", default="tf", type=str)
     args = parser.parse_args()
     print("Getting track features.")
-    track_features_map = tfp.TrackFeatureParser.get_track_features(args.folder)
+    track_features_parser = tfp.TrackFeatureParser(None)
+    track_features_map = track_features_parser.get_track_features(args.folder)
     print("Creating histograms.")
     histograms = create_histograms(track_features_map)
     write_histograms(histograms)

@@ -20,7 +20,6 @@ class FinetunedEDSFFirstPredictionModel(FinetunedEncoderDecoderModel):
         transformer = tf.keras.layers.Dense(256, activation=tf.nn.relu)
         decoders = [
             tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_sequences=True, return_state=True), name="TFDecoder"),
-            #tf.keras.layers.LSTM(256, return_sequences=True, return_state=True, name="SkipDecoder"),
             tf.keras.layers.Dropout(0.5, name="SkipDropout"),
             tf.keras.layers.Dense(128, activation=tf.nn.relu, name='SkipFeedforward_1'),
             tf.keras.layers.Dense(64, activation=tf.nn.relu, name='SkipFeedforward_2'),
@@ -37,7 +36,6 @@ class FinetunedEDSFFirstPredictionModel(FinetunedEncoderDecoderModel):
                                                                                         encoder_out_states[1],
                                                                                         encoder_out_states[2],
                                                                                         encoder_out_states[3]])
-        #x, state_h, state_c = decoders[1](x)
         x = tf.keras.layers.Concatenate(name="ConcatenatedTo_Skip_-1")([
             x,
             previous_predicted_input
@@ -80,12 +78,9 @@ class FinetunedEDSFFirstPredictionModel(FinetunedEncoderDecoderModel):
         batch_len = first_half.shape[0]
 
         if first_half.shape[2] != second_half.shape[2]:
-            session_lengths = np.full((batch_len, n, 1), 20.)
-            session_positions = np.array([10. + i + 1. for i in range(n)])
-            session_positions = np.tile(session_positions, (batch_len, 1)).reshape((batch_len, n, 1))
-            first_two_columns = np.concatenate((session_positions, session_lengths), 2)
+            last_two_columns = np.full((batch_len, n, 2), 0.)
             cut_second_half = second_half[:, :n, :]
-            second_half_columns = np.concatenate((first_two_columns, cut_second_half), 2)
+            second_half_columns = np.concatenate((cut_second_half, last_two_columns), 2)
         else:
             second_half_columns = second_half[:, :n, :]
         first_half_columns = first_half[:, n:, :]
@@ -109,7 +104,8 @@ class FinetunedEDSFFirstPredictionModel(FinetunedEncoderDecoderModel):
     def _pad_input(features):
         return np.pad(features, [(0, 10 - features.shape[0]), (0, 0)])
 
-    def _pad_targets(self, skips):
+    @staticmethod
+    def _pad_targets(skips):
         return np.pad(skips, [(0, 10 - skips.shape[0]), (0, 0)], constant_values=0)
 
     def call_on_batch(self, inputs):
@@ -172,7 +168,7 @@ if __name__ == "__main__":
     parser.add_argument("--result_dir", default="results", type=str, help="Name of the results folder.")
     parser.add_argument("--model_name", default="finetuned_edsf_first_prediction", type=str, help="Name of the model to save.")
     parser.add_argument("--saved_weights_folder", default=".." + os.sep + "saved_models" + os.sep + "edsf_5" + os.sep + "encoder_decoder_sf", type=str, help="Name of the folder of saved lengths.")
-    parser.add_argument("--train_on_predicted", default=False, type=bool, help="Whether to train using predicted sf for second half.")
+    parser.add_argument("--train_on_predicted", default=True, type=bool, help="Whether to train using predicted sf for second half.")
     parser.add_argument("--eval_on_predicted", default=False, type=bool, help="Whether to evaluate using predicted sf for second half.")
     args = parser.parse_args()
 
@@ -184,22 +180,15 @@ if __name__ == "__main__":
     tf.random.set_seed(args.seed)
 
     model = FinetunedEDSFFirstPredictionModel(args.batch_size, 100, args.saved_weights_folder, args.train_on_predicted, args.eval_on_predicted)
-    model.network.load_weights(args.result_dir + os.sep + args.model_name)
 
     predictor = Predictor(model, args.tf_preprocessor)
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
 
-    #maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
-    #accuracies, mean = predictor.evaluate_true_accuracies(args.test_folder, args.tf_folder)
-    #print("Finetuned edsf first prediction model achieved " + str(mean) + " mean accuracy")
-    #i = 0
-    #for acc in accuracies:
-    #    i += 1
-    #    print("Finetuned edsf first prediction model achieved " + str(acc) + " " + str(i) + "th prediction accuracy.")
+    maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 
     model.save_model(args.result_dir + os.sep + args.model_name)
 
     print(str(args))
-    #print("Finetuned edsf first prediction model achieved " + str(maa) + " mean average accuracy")
-    #print("Finetuned edsf first prediction model achieved " + str(fpa) + " first prediction accuracy")
+    print("Finetuned edsf first prediction model achieved " + str(maa) + " mean average accuracy")
+    print("Finetuned edsf first prediction model achieved " + str(fpa) + " first prediction accuracy")
     print("------------------------------------")

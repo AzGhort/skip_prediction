@@ -1,12 +1,12 @@
 import os
 import tensorflow as tf
 import numpy as np
-from models.network_model import NetworkModel
+from models.skip_prediction_nn_model import SkipPredictionNNModel
 from dataset_description import *
 from spotify_dataset import SpotifyDataset
 
 
-class TrackFeaturesDenseNetwork(NetworkModel):
+class TrackFeaturesDenseNNModel(SkipPredictionNNModel):
     def call_on_batch(self, batch_input):
         raise NotImplementedError()
 
@@ -91,8 +91,9 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
 
-    model = TrackFeaturesDenseNetwork(args.hidden_layer, args.layers, args.batch_size)
+    model = TrackFeaturesDenseNNModel(args.hidden_layer, args.layers, args.batch_size)
     predictor = Predictor(model, args.tf_preprocessor)
+
     predictor.train(args.episodes, args.train_folder, args.tf_folder)
     maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 
