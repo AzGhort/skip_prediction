@@ -19,21 +19,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_folder", default=".." + os.sep + ".." + os.sep + "example_set", type=str, help="Name of the train log folder.")
-    parser.add_argument("--test_folder", default=".." + os.sep + ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
-    parser.add_argument("--tf_folder", default=".." + os.sep + "tf", type=str, help="Name of track features folder")
+    parser.add_argument("--test_folder", default= ".." + os.sep + "mini_test_set", type=str, help="Name of the test log folder.")
+    parser.add_argument("--tf_folder", default="." + os.sep + "tf", type=str, help="Name of track features folder")
     args = parser.parse_args()
 
     model = LastSkipModel()
     predictor = Predictor(model)
-    #maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
-    #print("Last user skip model achieved " + str(maa) + " mean average accuracy")
-    #print("Last user skip model achieved " + str(fpa) + " first prediction accuracy")
+    maa, fpa = predictor.evaluate(args.test_folder, args.tf_folder)
 
-    accuracies, mean = predictor.evaluate_skip_accuracies(args.test_folder, args.tf_folder)
-    accs = ""
-    for j in range(10):
-        accs = accs + str(accuracies[j]) + " "
-    print("------------------------------------")
-    print(accs)
-    print("Last skip model achieved " + str(mean) + " mean accuracy")
+    print(str(args))
+    print("Last skip model achieved " + str(maa) + " mean average accuracy")
+    print("Last skip model achieved " + str(fpa) + " first prediction accuracy")
     print("------------------------------------")

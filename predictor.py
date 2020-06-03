@@ -15,7 +15,7 @@ class Predictor:
     def train(self, episodes, train_folder, tf_folder):
         print("[Predictor]: TRAINING")
         if train_folder is None or tf_folder is None:
-            raise AttributeError("Must specify log and tf folder.")
+            return
 
         print("[Predictor]: Initializing, session features folder: \'" + str(train_folder) + "\', track features folder: \'" + str(tf_folder) + "\'.")
         spotify = SpotifyDataset(train_folder, tf_folder, self.tf_preprocessor_name)
@@ -46,8 +46,8 @@ class Predictor:
         aas = []
         fas = []
         print("[Predictor]: EVALUATING")
-        if folder is None or tf_folder is None:
-            raise AttributeError("Must specify log and tf folder.")
+        if tf_folder is None or folder is None:
+            raise AttributeError("Must specify tf folder.")
 
         print("[Predictor]: Initializing, session features folder: \'" + str(folder) + "\', track features folder: \'" + str(tf_folder) + "\'.")
         spotify = SpotifyDataset(folder, tf_folder, self.tf_preprocessor_name)
@@ -68,7 +68,7 @@ class Predictor:
         means = []
         print("[Predictor]: EVALUATING TRUE ACCURACIES")
         if folder is None or tf_folder is None:
-            raise AttributeError("Must specify log and tf folder.")
+            return
 
         print("[Predictor]: Initializing, session features folder: \'" + str(folder) + "\', track features folder: \'" + str(tf_folder) + "\'.")
         spotify = SpotifyDataset(folder, tf_folder, self.tf_preprocessor_name)
@@ -92,7 +92,7 @@ class Predictor:
         feature_mean_accuracies = [[0 for _ in range(10)] for _ in range(SpotifyDataset.SESSION_PREDICTABLE_FEATURES)]
         print("[Predictor]: EVALUATING ACCURACIES OF ALL FEATURES")
         if folder is None or tf_folder is None:
-            raise AttributeError("Must specify log and tf folder.")
+            return
 
         print("[Predictor]: Initializing, session features folder: \'" + str(folder) + "\', track features folder: \'" + str(tf_folder) + "\'.")
         spotify = SpotifyDataset(folder, tf_folder, self.tf_preprocessor_name)
