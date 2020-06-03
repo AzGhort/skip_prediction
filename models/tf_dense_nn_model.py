@@ -1,12 +1,12 @@
 import os
 import tensorflow as tf
 import numpy as np
-from models.skip_prediction_nn_model import SkipPredictionNNModel
+from models.nn_model import NNModel
 from dataset_description import *
 from spotify_dataset import SpotifyDataset
 
 
-class TrackFeaturesDenseNNModel(SkipPredictionNNModel):
+class TrackFeaturesDenseNNModel(NNModel):
     def call_on_batch(self, batch_input):
         raise NotImplementedError()
 

@@ -1,5 +1,5 @@
 import numpy as np
-from models.skip_prediction_nn_model import SkipPredictionNNModel
+from models.nn_model import NNModel
 from dataset_description import *
 from spotify_dataset import SpotifyDataset
 import os
@@ -10,7 +10,7 @@ from preprocessing.session_feature_stats import *
 
 
 # encoder-decoder architecture, predicting the session features 2 - 18
-class EncoderDecoderSF(SkipPredictionNNModel):
+class EncoderDecoderSF(NNModel):
     def __init__(self, batch_size, verbose_each=10):
         # SESSION REPRESENTATION
         # ---------------------------------------------------------------------------

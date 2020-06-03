@@ -1,8 +1,8 @@
-from models.skip_prediction_nn_model import SkipPredictionNNModel
+from models.nn_model import NNModel
 from models.encoder_decoder_sf import EncoderDecoderSF
 
 
-class FinetunedEncoderDecoderModel(SkipPredictionNNModel):
+class FinetunedEncoderDecoderModel(NNModel):
     def __init__(self, batch_size, verbose_each, saved_model_file, trainable_decoder=False):
         self.batch_size = batch_size
         self.verbose_each = verbose_each

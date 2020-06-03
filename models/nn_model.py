@@ -3,10 +3,19 @@ from dataset_description import DatasetDescription
 import numpy as np
 
 
-class SkipPredictionNNModel(Model):
+class NNModel(Model):
     def __init__(self, batch_size, verbose_each):
         self.batch_size = batch_size
         self.verbose_each = verbose_each
+
+    def prepare_batch(self, batch):
+        raise NotImplementedError()
+
+    def train_on_batch(self, x, y):
+        raise NotImplementedError()
+
+    def call_on_batch(self, batch):
+        raise NotImplementedError()
 
     def train(self, set):
         batch_index = 0
